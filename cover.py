@@ -1,5 +1,7 @@
 """Support for NeoSmartBlinds covers."""
 import logging
+
+
 from homeassistant.components.cover import CoverDevice, PLATFORM_SCHEMA
 from custom_components.neosmartblinds.neosmartblinds.neo_smart_blinds_remote import NeoSmartBlinds
 import voluptuous as vol
@@ -22,15 +24,16 @@ from homeassistant.const import (
     CONF_NAME,
 )
 
-_LOGGER = logging.getLogger(__name__)
-
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 CONF_DEVICE = "blind_code"
 CONF_CLOSE_TIME = "close_time"
+CONF_ID = "000000"
 LOGGER = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -43,12 +46,13 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+def setup_platform(hass, config, add_entities, discovery_info=None, ):
     """Set up NeoSmartBlinds cover."""
     cover = NeoSmartBlindsCover(
         hass,
         config.get(CONF_NAME),
         config.get(CONF_HOST),
+        config.get(CONF_ID),
         config.get(CONF_DEVICE),
         config.get(CONF_CLOSE_TIME),
         )
@@ -58,13 +62,14 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 class NeoSmartBlindsCover(CoverDevice):
     """Representation of a NeoSmartBlinds cover."""
 
-    def __init__(self, hass, name, host, device, close_time):
+    def __init__(self, hass, name, host, the_id, device, close_time):
         """Initialize the cover."""
         self.hass = hass
         self._name = name
         self._host = host
+        self._the_id = the_id
         self._device = device
-        self._client = NeoSmartBlinds(host,device, close_time)
+        self._client = NeoSmartBlinds(host, device, close_time)
 
     @property
     def name(self):
@@ -107,23 +112,23 @@ class NeoSmartBlindsCover(CoverDevice):
         return 50
 
     def close_cover(self, **kwargs):
-        self._client.sendCommand('dn')
+        self._client.send_command_new('dn')
         """Close the cover."""
 
     def open_cover(self, **kwargs):
-        self._client.sendCommand('up')
+        self._client.send_command_new('up')
         """Open the cover."""
 
     def stop_cover(self, **kwargs):
-        self._client.sendCommand('sp')
+        self._client.send_command_new('sp')
         """Stop the cover."""
         
     def open_cover_tilt(self, **kwargs):
-        self._client.sendCommand('mu')
+        self._client.send_command_new('mu')
         """Open the cover tilt."""
         
     def close_cover_tilt(self, **kwargs):
-        self._client.sendCommand('md')
+        self._client.send_command_new('md')
         """Close the cover tilt."""
 
     def set_cover_position(self, **kwargs):
