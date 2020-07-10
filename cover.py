@@ -55,11 +55,11 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_NAME): cv.string,
-        vol.Required(CONF_DEVICE): cv.string,
-        vol.Required(CONF_CLOSE_TIME): cv.string,
+        vol.Required(CONF_DEVICE, description="ID Code of blind in app"): cv.string,
+        vol.Required(CONF_CLOSE_TIME, default=20): cv.positive_int,
         vol.Required(CONF_ID): cv.string,
-        vol.Required(CONF_PROTOCOL): cv.string,
-        vol.Required(CONF_PORT): cv.string,
+        vol.Required(CONF_PROTOCOL, default="http"): cv.string,
+        vol.Required(CONF_PORT, default=8838): cv.port,
     }
 )
 
@@ -102,6 +102,11 @@ class NeoSmartBlindsCover(CoverEntity):
     def name(self):
         """Return the name of the NeoSmartBlinds device."""
         return self._name
+
+    @property
+    def unique_id(self):
+        """return a unique id for the entity"""
+        return DATA_NEOSMARTBLINDS + "." + self._device
 
     @property
     def should_poll(self):

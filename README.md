@@ -50,7 +50,7 @@ Port use for the connection.  for TCP use 8839, for HTTP use 8838
 The name you would like to give to the NeoSmartBlind.
 
 **blind_code** _(String)(Required)_<br>
-The blind code. - this is available from the NeoSmartBlind app
+The blind code. - This is available from the NeoSmartBlind app
 
 **close_time** _(String)(Required)_<br>
 Time taken in seconds to close this blind (use a stop watch to measure)
