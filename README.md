@@ -29,7 +29,7 @@ cover:
     protocol: http
     port: 8838
     blind_code: 021.230-04
-    close_time: 65
+    close_time: 30
 ```
 
 ## Configuration variables
@@ -42,8 +42,18 @@ Must be set to neosmartblinds
 **host** _(String)(Required)_<br>
 The IP of the NeoSmartBlinds controller, e.g., 192.168.0.10.
 
+Getting the IP:
+
+![Getting the IP](doc_images\app_controller_ip.jpg)
+
+
+
 **hub_id** _(String)(Required)_<br>
 The 24 character device ID of the Smart Blinds Hub, found in the APP
+
+![Entity Config](doc_images\app_main_window.JPG)
+![Entity Config](doc_images\app_menu.JPG)
+![Entity Config](doc_images\app_controllers.JPG)
 
 **protocol** _(String)(Required)_<br>
 The protocol to use for sending commands. (http, tcp)
@@ -55,11 +65,35 @@ Port use for the connection.  for TCP use 8839, for HTTP use 8838
 The name you would like to give to the NeoSmartBlind.
 
 **blind_code** _(String)(Required)_<br>
-The blind code. - This is available from the NeoSmartBlind app
+The blind code. - This is available from the NeoSmartBlind app<br>
+Getting the codes: 
+
+![Blind Code](doc_images\app_blind_codes.jpg)
+
+- Room Code: will control all blinds in that room
+- Blind Code: will controll only that blind
+
+**“​ID1.ID2-CHANNEL"**<br>
+**“ID1”** : controller byte 1, from integer “000” to “255”<br>
+**“.”** : address separator<br>
+**“ID2”** : controller byte 2, from integer “000” to “255”<br>
+**“-”** : channel separator<br>
+**“CHANNEL”** : channel, individual channel from integer “01” to “14”, use channel “15” for a group
 
 **close_time** _(String)(Required)_<br>
 Time taken in seconds to close this blind (use a stop watch to measure)
 
+Entity Options in UI:
+
+![Entity Config](doc_images\EntityOptions.JPG)
+
+Entity Control allows for fine adjustment and extra controls:
+
+![Entity Config](doc_images\EntityControl.JPG)
+
+Lovelace ui panel provides basic control
+
+![Entity Config](doc_images\Lovelace_UI_Panel.JPG)
 
 ## Supported features
 
@@ -84,3 +118,6 @@ Micro-Down
    **>=51** will move the blind up, this means set position 75, moves the blind up and stops after 50% of your close_time
    
    **==50** will set your blind to its stored favourite position 
+   
+   
+
