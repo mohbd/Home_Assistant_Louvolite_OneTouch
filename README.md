@@ -38,7 +38,7 @@ Must be set to neosmartblinds
 The IP of the NeoSmartBlinds controller, e.g., 192.168.0.10.
 
 **hub_id** _(String)(Required)_<br>
-The device ID of the Smart Blinds Hub, found in the APP
+The 24 character device ID of the Smart Blinds Hub, found in the APP
 
 **protocol** _(String)(Required)_<br>
 The protocol to use for sending commands. (http, tcp)

@@ -3,7 +3,6 @@ import logging
 
 from homeassistant.components.cover import PLATFORM_SCHEMA
 from custom_components.neosmartblinds.neo_smart_blind import NeoSmartBlind
-# from neo_smart_blind import NeoSmartBlind
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
@@ -19,7 +18,6 @@ from homeassistant.components.cover import (
 
 
 from homeassistant.const import (
-    ATTR_ENTITY_ID,
     CONF_HOST,
     CONF_NAME,
 )
@@ -82,12 +80,13 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
 class NeoSmartBlindsCover(CoverEntity):
     """Representation of a NeoSmartBlinds cover."""
 
-    def __init__(self, hass, name, host, the_id, device, close_time, protocol, port):
+    def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port):
         """Initialize the cover."""
-        if DATA_NEOSMARTBLINDS not in hass.data:
-            hass.data[DATA_NEOSMARTBLINDS] = []
+        self.home_assistant = home_assistant
 
-        self.hass = hass
+        if DATA_NEOSMARTBLINDS not in self.home_assistant.data:
+            self.home_assistant.data[DATA_NEOSMARTBLINDS] = []
+
         self._name = name
         self._host = host
         self._the_id = the_id
@@ -96,7 +95,7 @@ class NeoSmartBlindsCover(CoverEntity):
         self._port = port
         self._client = NeoSmartBlind(self._host, self._the_id, self._device, close_time, self._port, self._protocol)
 
-        hass.data[DATA_NEOSMARTBLINDS].append(self._client)
+        self.hass.data[DATA_NEOSMARTBLINDS].append(self._client)
 
     @property
     def name(self):
@@ -105,7 +104,7 @@ class NeoSmartBlindsCover(CoverEntity):
 
     @property
     def unique_id(self):
-        """return a unique id for the entity"""
+        """Return a unique id for the entity"""
         return DATA_NEOSMARTBLINDS + "." + self._device
 
     @property
