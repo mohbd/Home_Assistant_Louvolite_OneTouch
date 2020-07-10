@@ -51,9 +51,9 @@ Getting the IP:
 **hub_id** _(String)(Required)_<br>
 The 24 character device ID of the Smart Blinds Hub, found in the APP
 
-![Entity Config](doc_images/app_main_window.JPG)
-![Entity Config](doc_images/app_menu.JPG)
-![Entity Config](doc_images/app_controllers.JPG)
+![App Main Screen](doc_images/app_main_window.jpg)
+![App Menu](doc_images/app_menu.jpg)
+![App Controllers](doc_images/app_controllers.jpg)
 
 **protocol** _(String)(Required)_<br>
 The protocol to use for sending commands. (http, tcp)
@@ -85,15 +85,15 @@ Time taken in seconds to close this blind (use a stop watch to measure)
 
 Entity Options in UI:
 
-![Entity Config](doc_images/EntityOptions.JPG)
+![Entity Options](doc_images/EntityOptions.JPG)
 
 Entity Control allows for fine adjustment and extra controls:
 
-![Entity Config](doc_images/EntityControl.JPG)
+![Entity Control](doc_images/EntityControl.JPG)
 
 Lovelace ui panel provides basic control
 
-![Entity Config](doc_images/Lovelace_UI_Panel.JPG)
+![Lovelace UI panel](doc_images/Lovelace_UI_Panel.JPG)
 
 ## Supported features
 
