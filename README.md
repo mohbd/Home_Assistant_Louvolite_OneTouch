@@ -10,7 +10,12 @@ There is currently support for the following device types within Home Assistant:
 
 To begin with it is recommended you ensure your NeoSmartBlinds controller has a static IP addresses, you may need to configure this via your routers DHCP options.
 
-Download the custom component in to your folder <config_directory>/custom_components/neosmartblinds
+1. Download the latest release from: https://github.com/mtgeekman/Home_Assistant_NeoSmartBlinds/releases
+2. Extract the file
+3. Copy the **neosmartblinds** folder to your **config/custom_components/** directory
+4. Go to Config -> Server Controls -> Under "Server Management" click restart
+5. Go to configuration example for how to setup your config.
+
 
 # Cover Configuration 
 
