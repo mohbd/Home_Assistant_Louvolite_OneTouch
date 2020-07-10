@@ -15,11 +15,9 @@ close_time = 10
 def sendCommand(code):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print(s.send("test", ))
         newcode = device + code + '\r\n'
-        print(newcode)
         test = s.connect((host, port))
-        print(test)
+
         while True:
             print(s.send(newcode.encode()))
     except:
@@ -27,19 +25,21 @@ def sendCommand(code):
 
 
 def send_command_new(command):
-    URL = "http://192.168.1.168:8838/neo/v1/transmit"
+    url = "http://" + host + ":" + port + "/neo/v1/transmit"
 
-    PARAMS = {'id': id, 'command': device + "-" + command}
+    params = {'id': id, 'command': device + "-" + command, 'hash': str(time.time()).strip(".")[-7:]}
 
-    r = requests.get(url=URL, params=PARAMS)
+    r = requests.get(url=url, params=params)
 
     print(r)
 
 
+# print(str(time.time())[:7])
+
 for i in range(1):
-    send_command_new("dn")
-    time.sleep(9)
     send_command_new("sp")
+    #time.sleep(9)
+    #send_command_new("sp")
 
 
 # tester = NeoSmartBlinds("192.168.1.168", device, port, close_time)

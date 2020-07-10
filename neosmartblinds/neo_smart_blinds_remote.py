@@ -9,9 +9,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class NeoSmartBlinds:
-    commands = {"up": "up", "down": "dn", "micro_up": "mu", "micro_down": "md", "stop": "sp"}
     """
-    Commands: 
+    Commands:
     Up              = up
     Down            = dn
     Micro Up        = mu
@@ -23,53 +22,69 @@ class NeoSmartBlinds:
     Confirm(Sync)   = sc
     Limit           = ld
     
+    Move to Position = 01-99  (% of range for motion, only select window blinds have this option)
+    
     """
 
-    def __init__(self, host, the_id, device, close_time, port=8839):
+    def __init__(self, host, the_id, device, close_time, port, protocol):
         self._host = host
         self._port = port
+        self._protocol = protocol
         self._the_id = the_id
         self._device = device
         self._close_time = int(close_time)
         
-    def adjust(self, pos):
+    def adjust_blind(self, pos):
         if pos == 50:
-            self.send_command_new('gp')
+            self.send_command('gp')
             return
         if pos >= 51:
-            self.send_command_new('up')
+            self.send_command('up')
             wait1 = (pos - 50)*2
             wait = (wait1*self._close_time)/100
             LOGGER.warning(wait)
             time.sleep(wait)
-            self.send_command_new('sp')
+            self.send_command('sp')
             return            
         if pos <= 49:    
-            self.send_command_new('dn')
+            self.send_command('dn')
             wait1 = (50 - pos)*2
             wait = (wait1*self._close_time)/100
             LOGGER.warning(wait)
             time.sleep(wait)
-            self.send_command_new('sp')
+            self.send_command('sp')
             return
 
-    def sendCommand_old(self, code):
+    def send_command(self, command):
+        if str(self._protocol).lower() == "http":
+            self.send_command_http(command)
 
-        # print("Sending: " + code)
+        elif str(self._protocol).lower() == "tcp":
+            self.send_command_tcp(command)
+
+        else:
+            LOGGER.error("NeoSmartBlinds, Unknown protocol: " + self._protocol + ", please use: http or tcp")
+
+    def send_command_tcp(self, code):
+
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            newcode = self._device + code + '\r\n'
+            s.settimeout(5)
+
+            command = self._device + code + '\r\n'
+            LOGGER.info("NeoSmartBlinds, Sending command: " + command)
             s.connect((self._host, self._port))
             while True:
-                s.send(newcode)
-        except:
+                s.send(command)
+        except socket.error:
+            LOGGER.exception(socket.error.strerror)
             return
 
-    def send_command_new(self, command):
-        URL = "http://192.168.1.168:8838/neo/v1/transmit"
+    def send_command_http(self, command):
+        url = "http://" + self._host + ":" + str(self._port) + "/neo/v1/transmit"
 
-        PARAMS = {'id': self.id, 'command': self.device + "-" + command}
+        params = {'id': self._the_id, 'command': self._device + "-" + command, 'hash': str(time.time()).strip(".")[-7:]}
 
-        r = requests.get(url=URL, params=PARAMS)
-
-        print(r)
+        r = requests.get(url=url, params=params)
+        LOGGER.info("Sent: " + r.url)
+        LOGGER.info("Neo Hub Responded with - " + r.text)
