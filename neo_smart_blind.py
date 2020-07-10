@@ -4,11 +4,25 @@ import time
 
 import requests
 
+from .const import (
+    DATA_NEOSMARTBLINDS,
+    CMD_UP,
+    CMD_DOWN,
+    CMD_MICRO_UP,
+    CMD_MICRO_DOWN,
+    CMD_STOP,
+    CMD_FAV,
+    CMD_SET_FAV,
+    CMD_REVERSE,
+    CMD_CONFIRM,
+    CMD_LIMIT,
+)
+
 _LOGGER = logging.getLogger(__name__)
 LOGGER = logging.getLogger(__name__)
 
 
-class NeoSmartBlinds:
+class NeoSmartBlind:
     """
     Commands:
     Up              = up
@@ -36,23 +50,23 @@ class NeoSmartBlinds:
         
     def adjust_blind(self, pos):
         if pos == 50:
-            self.send_command('gp')
+            self.send_command(CMD_FAV)
             return
         if pos >= 51:
-            self.send_command('up')
+            self.send_command(CMD_UP)
             wait1 = (pos - 50)*2
             wait = (wait1*self._close_time)/100
             LOGGER.warning(wait)
             time.sleep(wait)
-            self.send_command('sp')
+            self.send_command(CMD_STOP)
             return            
         if pos <= 49:    
-            self.send_command('dn')
+            self.send_command(CMD_DOWN)
             wait1 = (50 - pos)*2
             wait = (wait1*self._close_time)/100
             LOGGER.warning(wait)
             time.sleep(wait)
-            self.send_command('sp')
+            self.send_command(CMD_STOP)
             return
 
     def send_command(self, command):
@@ -71,7 +85,7 @@ class NeoSmartBlinds:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(5)
 
-            command = self._device + code + '\r\n'
+            command = self._device + "-" + code + '\r\n'
             LOGGER.info("NeoSmartBlinds, Sending command: " + command)
             s.connect((self._host, self._port))
             while True:

@@ -20,7 +20,10 @@ cover:
   - platform: neosmartblinds
     name: Blind One
     host: 192.168.0.13
-    blind_code: 021.230-04-
+    hub_id: 000000000000000000000000
+    protocol: http
+    port: 8838
+    blind_code: 021.230-04
     close_time: 65
 ```
 
@@ -28,19 +31,28 @@ cover:
 
 cover:
 
-**platform** (string)(Required) 
+**platform** (String)(Required) <br>
 Must be set to neosmartblinds
 
-**host** _(string)(Required)_
+**host** _(String)(Required)_<br>
 The IP of the NeoSmartBlinds controller, e.g., 192.168.0.10.
 
-**name** _(string)(Required)_
+**hub_id** _(String)(Required)_<br>
+The device ID of the Smart Blinds Hub, found in the APP
+
+**protocol** _(String)(Required)_<br>
+The protocol to use for sending commands. (http, tcp)
+
+**port** _(String)(Required)_<br>
+Port use for the connection.  for TCP use 8839, for HTTP use 8838
+
+**name** _(String)(Required)_<br>
 The name you would like to give to the NeoSmartBlind.
 
-**blind_code** _(string)(Required)_
+**blind_code** _(String)(Required)_<br>
 The blind code. - this is available from the NeoSmartBlind app
 
-**close_time** _(string)(Required)_
+**close_time** _(String)(Required)_<br>
 Time taken in seconds to close this blind (use a stop watch to measure)
 
 

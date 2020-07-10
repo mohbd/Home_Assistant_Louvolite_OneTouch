@@ -2,7 +2,6 @@
   "domain": "neosmartblinds",
   "name": "NeoSmartBlinds",
   "documentation": "",
-  "dependencies": [],
   "codeowners": [],
-  "requirements": []
+  "requirements": ["requests==2.24.0"]
 }

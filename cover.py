@@ -1,12 +1,11 @@
 """Support for NeoSmartBlinds covers."""
 import logging
 
-from homeassistant.components.cover import CoverDevice, PLATFORM_SCHEMA
-#from custom_components.neosmartblinds.neosmartblinds.neo_smart_blinds_remote import NeoSmartBlinds
-from neosmartblinds.neo_smart_blinds_remote import NeoSmartBlinds
+from homeassistant.components.cover import PLATFORM_SCHEMA
+from custom_components.neosmartblinds.neo_smart_blind import NeoSmartBlind
+# from neo_smart_blind import NeoSmartBlind
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.script import Script
 
 from homeassistant.components.cover import (
     SUPPORT_CLOSE,
@@ -15,22 +14,40 @@ from homeassistant.components.cover import (
     SUPPORT_SET_POSITION,    
     SUPPORT_OPEN_TILT,
     SUPPORT_CLOSE_TILT,
-    CoverDevice,
+    CoverEntity,
 )
 
 
 from homeassistant.const import (
+    ATTR_ENTITY_ID,
     CONF_HOST,
     CONF_NAME,
 )
 
-_LOGGER = logging.getLogger(__name__)
+from .const import (
+    CONF_DEVICE,
+    CONF_CLOSE_TIME,
+    CONF_ID,
+    CONF_PROTOCOL,
+    CONF_PORT,
+    DATA_NEOSMARTBLINDS,
+    CMD_UP,
+    CMD_DOWN,
+    CMD_MICRO_UP,
+    CMD_MICRO_DOWN,
+    CMD_STOP,
+)
 
-CONF_DEVICE = "blind_code"
-CONF_CLOSE_TIME = "close_time"
-CONF_ID = "hub_id"
-CONF_PROTOCOL = "hub_id"
-CONF_PORT = "port"
+SUPPORT_NEOSMARTBLINDS = (
+    SUPPORT_OPEN
+    | SUPPORT_CLOSE
+    | SUPPORT_SET_POSITION
+    | SUPPORT_OPEN_TILT
+    | SUPPORT_CLOSE_TILT
+    | SUPPORT_STOP
+)
+
+_LOGGER = logging.getLogger(__name__)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,11 +79,14 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
     add_entities([cover])
 
 
-class NeoSmartBlindsCover(CoverDevice):
+class NeoSmartBlindsCover(CoverEntity):
     """Representation of a NeoSmartBlinds cover."""
 
     def __init__(self, hass, name, host, the_id, device, close_time, protocol, port):
         """Initialize the cover."""
+        if DATA_NEOSMARTBLINDS not in hass.data:
+            hass.data[DATA_NEOSMARTBLINDS] = []
+
         self.hass = hass
         self._name = name
         self._host = host
@@ -74,7 +94,9 @@ class NeoSmartBlindsCover(CoverDevice):
         self._device = device
         self._protocol = protocol
         self._port = port
-        self._client = NeoSmartBlinds(self._host, self._the_id, self._device, close_time, self._port, self._protocol)
+        self._client = NeoSmartBlind(self._host, self._the_id, self._device, close_time, self._port, self._protocol)
+
+        hass.data[DATA_NEOSMARTBLINDS].append(self._client)
 
     @property
     def name(self):
@@ -89,12 +111,7 @@ class NeoSmartBlindsCover(CoverDevice):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_OPEN | \
-            SUPPORT_CLOSE | \
-            SUPPORT_SET_POSITION | \
-            SUPPORT_OPEN_TILT | \
-            SUPPORT_CLOSE_TILT | \
-            SUPPORT_STOP
+        return SUPPORT_NEOSMARTBLINDS
 
     @property
     def device_class(self):
@@ -117,23 +134,23 @@ class NeoSmartBlindsCover(CoverDevice):
         return 50
 
     def close_cover(self, **kwargs):
-        self._client.send_command('dn')
+        self._client.send_command(CMD_DOWN)
         """Close the cover."""
 
     def open_cover(self, **kwargs):
-        self._client.send_command('up')
+        self._client.send_command(CMD_UP)
         """Open the cover."""
 
     def stop_cover(self, **kwargs):
-        self._client.send_command('sp')
+        self._client.send_command(CMD_STOP)
         """Stop the cover."""
         
     def open_cover_tilt(self, **kwargs):
-        self._client.send_command('mu')
+        self._client.send_command(CMD_MICRO_UP)
         """Open the cover tilt."""
         
     def close_cover_tilt(self, **kwargs):
-        self._client.send_command('md')
+        self._client.send_command(CMD_MICRO_DOWN)
         """Close the cover tilt."""
 
     def set_cover_position(self, **kwargs):
