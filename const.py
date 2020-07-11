@@ -12,6 +12,7 @@ CMD_MICRO_UP = "mu"
 CMD_MICRO_DOWN = "md"
 CMD_STOP = "sp"
 CMD_FAV = "gp"
+# Commands below are not available through home assistant as of yet.
 CMD_SET_FAV = "pp"
 CMD_REVERSE = "rv"
 CMD_CONFIRM = "sc"
