@@ -17,3 +17,15 @@ CMD_SET_FAV = "pp"
 CMD_REVERSE = "rv"
 CMD_CONFIRM = "sc"
 CMD_LIMIT = "ld"
+
+
+# Below are use for Top Down / Bottom Up blinds
+# used for "rail" 2 which is the top of the blind.
+CMD_UP2 = "u2"
+CMD_DOWN2 = "d2"
+CMD_MICRO_UP2 = "o2"
+CMD_MICRO_DOWN2 = "c2"
+
+# Used for "rail" 3 which is both top and bottom moving at once
+CMD_UP3 = "u3"
+CMD_DOWN3 = "d3"
