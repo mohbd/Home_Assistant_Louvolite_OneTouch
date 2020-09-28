@@ -16,13 +16,14 @@ LOGGER = logging.getLogger(__name__)
 
 
 class NeoSmartBlind:
-    def __init__(self, host, the_id, device, close_time, port, protocol):
+    def __init__(self, host, the_id, device, close_time, port, protocol, rail):
         self._host = host
         self._port = port
         self._protocol = protocol
         self._the_id = the_id
         self._device = device
         self._close_time = int(close_time)
+        self.rail = rail
         
     def adjust_blind(self, pos):
         """Adjust the blind based on the pos value send"""

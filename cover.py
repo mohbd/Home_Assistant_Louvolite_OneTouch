@@ -28,6 +28,7 @@ from .const import (
     CONF_ID,
     CONF_PROTOCOL,
     CONF_PORT,
+    CONF_RAIL,
     DATA_NEOSMARTBLINDS,
     CMD_UP,
     CMD_DOWN,
@@ -58,6 +59,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_ID): cv.string,
         vol.Required(CONF_PROTOCOL, default="http"): cv.string,
         vol.Required(CONF_PORT, default=8838): cv.port,
+        vol.Required(CONF_RAIL, default=1): cv.string,
     }
 )
 
@@ -73,6 +75,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
         config.get(CONF_CLOSE_TIME),
         config.get(CONF_PROTOCOL),
         config.get(CONF_PORT),
+        config.get(CONF_RAIL),
         )
     add_entities([cover])
 
@@ -80,7 +83,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
 class NeoSmartBlindsCover(CoverEntity):
     """Representation of a NeoSmartBlinds cover."""
 
-    def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port):
+    def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port, rail):
         """Initialize the cover."""
         self.home_assistant = home_assistant
 
@@ -93,7 +96,14 @@ class NeoSmartBlindsCover(CoverEntity):
         self._device = device
         self._protocol = protocol
         self._port = port
-        self._client = NeoSmartBlind(self._host, self._the_id, self._device, close_time, self._port, self._protocol)
+        self._rail = rail
+        self._client = NeoSmartBlind(self._host,
+                                     self._the_id,
+                                     self._device,
+                                     close_time,
+                                     self._port,
+                                     self._protocol,
+                                     self._rail)
 
         self.hass.data[DATA_NEOSMARTBLINDS].append(self._client)
 
