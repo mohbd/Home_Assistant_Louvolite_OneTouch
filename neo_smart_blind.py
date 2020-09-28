@@ -6,7 +6,9 @@ import requests
 
 from .const import (
     CMD_UP,
+    CMD_UP2,
     CMD_DOWN,
+    CMD_DOWN2,
     CMD_STOP,
     CMD_FAV,
 )
@@ -23,7 +25,7 @@ class NeoSmartBlind:
         self._the_id = the_id
         self._device = device
         self._close_time = int(close_time)
-        self.rail = rail
+        self._rail = rail
         
     def adjust_blind(self, pos):
         """Adjust the blind based on the pos value send"""
@@ -31,15 +33,21 @@ class NeoSmartBlind:
             self.send_command(CMD_FAV)
             return
         if pos >= 51:
-            self.send_command(CMD_UP)
+            if self._rail == 1:
+                self.send_command(CMD_UP)
+            elif self._rail == 2:
+                self.send_command(CMD_UP2)
             wait1 = (pos - 50)*2
             wait = (wait1*self._close_time)/100
             LOGGER.warning(wait)
             time.sleep(wait)
             self.send_command(CMD_STOP)
             return            
-        if pos <= 49:    
-            self.send_command(CMD_DOWN)
+        if pos <= 49:
+            if self._rail == 1:
+                self.send_command(CMD_DOWN)
+            elif self._rail == 2:
+                self.send_command(CMD_DOWN2)
             wait1 = (50 - pos)*2
             wait = (wait1*self._close_time)/100
             LOGGER.warning(wait)

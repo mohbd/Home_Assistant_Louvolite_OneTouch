@@ -35,6 +35,14 @@ from .const import (
     CMD_MICRO_UP,
     CMD_MICRO_DOWN,
     CMD_STOP,
+    CMD_UP2,
+    CMD_DOWN2,
+    CMD_MICRO_UP2,
+    CMD_MICRO_DOWN2,
+    CMD_UP3,
+    CMD_DOWN3,
+    CMD_TDBU_OPEN,
+    CMD_TDBU_CLOSE
 )
 
 SUPPORT_NEOSMARTBLINDS = (
@@ -148,11 +156,17 @@ class NeoSmartBlindsCover(CoverEntity):
         return 50
 
     def close_cover(self, **kwargs):
-        self._client.send_command(CMD_DOWN)
+        if self._rail == 1:
+            self._client.send_command(CMD_DOWN)
+        elif self._rail == 2:
+            self._client.send_command(CMD_DOWN2)
         """Close the cover."""
 
     def open_cover(self, **kwargs):
-        self._client.send_command(CMD_UP)
+        if self._rail == 1:
+            self._client.send_command(CMD_UP)
+        elif self._rail == 2:
+            self._client.send_command(CMD_UP2)
         """Open the cover."""
 
     def stop_cover(self, **kwargs):
@@ -160,11 +174,17 @@ class NeoSmartBlindsCover(CoverEntity):
         """Stop the cover."""
         
     def open_cover_tilt(self, **kwargs):
-        self._client.send_command(CMD_MICRO_UP)
+        if self._rail == 1:
+            self._client.send_command(CMD_MICRO_UP2)
+        elif self._rail == 2:
+            self._client.send_command(CMD_MICRO_UP2)
         """Open the cover tilt."""
         
     def close_cover_tilt(self, **kwargs):
-        self._client.send_command(CMD_MICRO_DOWN)
+        if self._rail == 1:
+            self._client.send_command(CMD_MICRO_DOWN2)
+        elif self._rail == 2:
+            self._client.send_command(CMD_MICRO_DOWN2)
         """Close the cover tilt."""
 
     def set_cover_position(self, **kwargs):
