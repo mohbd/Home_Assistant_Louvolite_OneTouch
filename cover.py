@@ -175,14 +175,14 @@ class NeoSmartBlindsCover(CoverEntity):
         
     def open_cover_tilt(self, **kwargs):
         if self._rail == 1:
-            self._client.send_command(CMD_MICRO_UP2)
+            self._client.send_command(CMD_MICRO_UP)
         elif self._rail == 2:
             self._client.send_command(CMD_MICRO_UP2)
         """Open the cover tilt."""
         
     def close_cover_tilt(self, **kwargs):
         if self._rail == 1:
-            self._client.send_command(CMD_MICRO_DOWN2)
+            self._client.send_command(CMD_MICRO_DOWN)
         elif self._rail == 2:
             self._client.send_command(CMD_MICRO_DOWN2)
         """Close the cover tilt."""
