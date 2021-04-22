@@ -10,7 +10,8 @@ from .const import (
     CMD_DOWN,
     CMD_DOWN2,
     CMD_STOP,
-    CMD_FAV,
+    CMD_FAV_1,
+    CMD_FAV_2,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,9 +31,13 @@ class NeoSmartBlind:
     def adjust_blind(self, pos):
         """Adjust the blind based on the pos value send"""
         if pos == 50:
-            self.send_command(CMD_FAV)
+            self.send_command(CMD_FAV_1)
             return
-        if pos >= 51:
+        if pos == 51:
+            self.send_command(CMD_FAV_2)
+            return
+        if pos >= 52:
+            self.send_command(CMD_UP)
             if self._rail == 1:
                 self.send_command(CMD_UP)
             elif self._rail == 2:

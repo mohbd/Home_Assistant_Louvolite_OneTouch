@@ -113,7 +113,7 @@ class NeoSmartBlindsCover(CoverEntity):
                                      self._protocol,
                                      self._rail)
 
-        self.hass.data[DATA_NEOSMARTBLINDS].append(self._client)
+        self.home_assistant.data[DATA_NEOSMARTBLINDS].append(self._client)
 
     @property
     def name(self):
