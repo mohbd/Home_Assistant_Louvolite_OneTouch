@@ -2,6 +2,6 @@
   "domain": "neosmartblinds",
   "name": "NeoSmartBlinds",
   "documentation": "https://github.com/mtgeekman/Home_Assistant_NeoSmartBlinds/blob/master/README.md",
-  "codeowners": ["4n0nD3v3l0p3r","mtgeekman"],
+  "codeowners": ["4n0nD3v3l0p3r","mtgeekman","clara-j"],
   "requirements": ["requests==2.24.0"]
 }
