@@ -10,6 +10,7 @@ from .const import (
     CMD_DOWN,
     CMD_DOWN2,
     CMD_STOP,
+    CMD_FAV,
     CMD_FAV_1,
     CMD_FAV_2,
 )
@@ -31,7 +32,7 @@ class NeoSmartBlind:
     def adjust_blind(self, pos):
         """Adjust the blind based on the pos value send"""
         if pos == 50:
-            self.send_command(CMD_FAV_1)
+            self.send_command(CMD_FAV)
             return
         if pos == 51:
             self.send_command(CMD_FAV_2)
