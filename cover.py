@@ -95,7 +95,7 @@ class NeoSmartBlindsCover(CoverEntity):
         self._port = port
         self._client = NeoSmartBlind(self._host, self._the_id, self._device, close_time, self._port, self._protocol)
 
-        self.hass.data[DATA_NEOSMARTBLINDS].append(self._client)
+        self.home_assistant.data[DATA_NEOSMARTBLINDS].append(self._client)
 
     @property
     def name(self):
