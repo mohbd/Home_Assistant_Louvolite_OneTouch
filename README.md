@@ -123,9 +123,9 @@ Micro-Down
       
    **>=52** will move the blind up, this means set position 75, moves the blind up and stops after 50% of your close_time
    
-   **==50** will set your blind to its stored first favorite position 
+   **==50** will set your blind to its stored first favourite position 
 
-   **==51** will set your blind to its stored second favorite position 
+   **==51** will set your blind to its stored second favourite position 
 
    
 
