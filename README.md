@@ -30,6 +30,7 @@ cover:
     port: 8838
     blind_code: 021.230-04
     close_time: 30
+    rail: 1
 ```
 
 ## Configuration variables
@@ -82,6 +83,11 @@ Getting the codes:
 
 **close_time** _(String)(Required)_<br>
 Time taken in seconds to close this blind (use a stop watch to measure)
+
+**rail** _(string)_<br>
+Rail Number used to determine top or bottom rail on top down/bottom up blinds. <br>
+1 = Top Rail<br>
+2 = Bottom Rail
 
 Entity Options in UI:
 
