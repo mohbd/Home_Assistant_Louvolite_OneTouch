@@ -15,7 +15,7 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger()
 
 
 class NeoSmartBlind:
@@ -94,5 +94,6 @@ class NeoSmartBlind:
         params = {'id': self._the_id, 'command': self._device + "-" + command, 'hash': str(time.time()).strip(".")[-7:]}
 
         r = requests.get(url=url, params=params)
+
         LOGGER.info("Sent: {}".format(r.url))
         LOGGER.info("Neo Hub Responded with - {}".format(r.text))

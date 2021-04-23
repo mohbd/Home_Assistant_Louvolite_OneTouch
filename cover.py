@@ -67,7 +67,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_ID): cv.string,
         vol.Required(CONF_PROTOCOL, default="http"): cv.string,
         vol.Required(CONF_PORT, default=8838): cv.port,
-        vol.Required(CONF_RAIL, default=1): cv.string,
+        vol.Required(CONF_RAIL, default=1): cv.positive_int,
     }
 )
 
