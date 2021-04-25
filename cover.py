@@ -13,6 +13,7 @@ from homeassistant.components.cover import (
     SUPPORT_SET_POSITION,    
     SUPPORT_OPEN_TILT,
     SUPPORT_CLOSE_TILT,
+    SUPPORT_SET_TILT_POSITION,
     CoverEntity,
 )
 
@@ -29,6 +30,7 @@ from .const import (
     CONF_PROTOCOL,
     CONF_PORT,
     CONF_RAIL,
+    CONF_PERCENT_SUPPORT,
     DATA_NEOSMARTBLINDS,
     CMD_UP,
     CMD_DOWN,
@@ -51,6 +53,7 @@ SUPPORT_NEOSMARTBLINDS = (
     | SUPPORT_SET_POSITION
     | SUPPORT_OPEN_TILT
     | SUPPORT_CLOSE_TILT
+    | SUPPORT_SET_TILT_POSITION
     | SUPPORT_STOP
 )
 
@@ -68,6 +71,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_PROTOCOL, default="http"): cv.string,
         vol.Required(CONF_PORT, default=8838): cv.port,
         vol.Required(CONF_RAIL, default=1): cv.positive_int,
+        vol.Required(CONF_PERCENT_SUPPORT, default=0): cv.positive_int,
     }
 )
 
@@ -84,6 +88,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
         config.get(CONF_PROTOCOL),
         config.get(CONF_PORT),
         config.get(CONF_RAIL),
+        config.get(CONF_PERCENT_SUPPORT),
         )
     add_entities([cover])
 
@@ -91,7 +96,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
 class NeoSmartBlindsCover(CoverEntity):
     """Representation of a NeoSmartBlinds cover."""
 
-    def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port, rail):
+    def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port, rail, percent_support):
         """Initialize the cover."""
         self.home_assistant = home_assistant
 
@@ -105,13 +110,15 @@ class NeoSmartBlindsCover(CoverEntity):
         self._protocol = protocol
         self._port = port
         self._rail = rail
+        self._percent_support = percent_support
         self._client = NeoSmartBlind(self._host,
                                      self._the_id,
                                      self._device,
                                      close_time,
                                      self._port,
                                      self._protocol,
-                                     self._rail)
+                                     self._rail,
+                                     self._percent_support)
 
         self.home_assistant.data[DATA_NEOSMARTBLINDS].append(self._client)
 
@@ -148,7 +155,8 @@ class NeoSmartBlindsCover(CoverEntity):
     @property
     def current_cover_position(self):
         """Return current position of cover."""
-        return 50
+        LOGGER.warning('Cover Position is: '+ str(self._client.get_position()))
+        return self._client.get_position()
 
     @property
     def current_cover_tilt_position(self):
@@ -156,17 +164,13 @@ class NeoSmartBlindsCover(CoverEntity):
         return 50
 
     def close_cover(self, **kwargs):
-        if self._rail == 1:
-            self._client.send_command(CMD_DOWN)
-        elif self._rail == 2:
-            self._client.send_command(CMD_DOWN2)
+        self._client.close_cover()
+        self.async_write_ha_state()
         """Close the cover."""
 
     def open_cover(self, **kwargs):
-        if self._rail == 1:
-            self._client.send_command(CMD_UP)
-        elif self._rail == 2:
-            self._client.send_command(CMD_UP2)
+        self._client.open_cover()
+        self.async_write_ha_state()
         """Open the cover."""
 
     def stop_cover(self, **kwargs):
@@ -189,5 +193,10 @@ class NeoSmartBlindsCover(CoverEntity):
 
     def set_cover_position(self, **kwargs):
         self._client.adjust_blind(kwargs['position'])
+        self.async_write_ha_state()
         """Move the cover to a specific position."""
+
+    def set_cover_tilt_position(self, **kwargs):
+        self._client.adjust_blind_tilt(kwargs['tilt_position'])
+        self.async_write_ha_state()
 

@@ -31,6 +31,7 @@ cover:
     blind_code: 021.230-04
     close_time: 30
     rail: 1
+    percent_support: 1
 ```
 
 ## Configuration variables
@@ -89,6 +90,12 @@ Rail Number used to determine top or bottom rail on top down/bottom up blinds. <
 1 = Top Rail<br>
 2 = Bottom Rail
 
+**percent_support** _(int)_<br>
+Determines if the blinds/controller support providing a percentage to set the blind position directly. <br>
+0 = No support (Default)<br>
+1 = Supported
+
+
 Entity Options in UI:
 
 ![Entity Options](doc_images/EntityOptions.JPG)
@@ -117,7 +124,7 @@ Micro-Down
 
 **Set-Position & Favourite Position** - please note this is calculated using the close_time
 
-   Setting the position: 
+   ### Setting the position if "percent_support" is disabled:
    
    **<= 49** will move the blind down, this means set position 25, moves the blind down and stops after 50% of your close_time
       
@@ -127,5 +134,11 @@ Micro-Down
 
    **==51** will set your blind to its stored second favourite position 
 
+   ### Setting the position if "percent_support" is disabled:
    
+   **Setting position** Use the position slider to select how 
+      
+   **Setting favorite postion 1** Use the tilt slider to select a value less than 50
+   
+   **Setting favorite postion 2** Use the tilt slider to select a value greater than 50
 
