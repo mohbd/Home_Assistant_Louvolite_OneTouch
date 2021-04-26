@@ -6,6 +6,7 @@ CONF_ID = "hub_id"
 CONF_PROTOCOL = "protocol"
 CONF_PORT = "port"
 CONF_RAIL = "rail"
+CONF_PERCENT_SUPPORT = "percent_support"
 
 CMD_UP = "up"
 CMD_DOWN = "dn"
