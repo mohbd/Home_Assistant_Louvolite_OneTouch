@@ -20,7 +20,7 @@ LOGGER = logging.getLogger()
 
 
 class NeoSmartBlind:
-    def __init__(self, host, the_id, device, close_time, port, protocol, rail, percent_support):
+    def __init__(self, host, the_id, device, close_time, port, protocol, rail, percent_support, motor_code):
         self._host = host
         self._port = port
         self._protocol = protocol
@@ -30,6 +30,7 @@ class NeoSmartBlind:
         self._rail = rail
         self._percent_support = percent_support
         self._current_position = 50
+        self._motor_code = motor_code
         if self._percent_support:
             self._fav_check = 'tilt'
         else:
@@ -145,8 +146,11 @@ class NeoSmartBlind:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(5)
+            mc = ""
+            if self._motor_code:
+                mc = "!{}".format(self._motor_code)
 
-            command = self._device + "-" + code + '\r\n'
+            command = self._device + "-" + code + mc + '\r\n'
             LOGGER.info("NeoSmartBlinds, Sending command: {}".format(command))
             s.connect((self._host, self._port))
             while True:
@@ -159,7 +163,12 @@ class NeoSmartBlind:
         """Command sender for HTTP"""
         url = "http://{}:{}/neo/v1/transmit".format(self._host, self._port)
 
-        params = {'id': self._the_id, 'command': self._device + "-" + command, 'hash': str(time.time()).strip(".")[-7:]}
+        mc = ""
+        if self._motor_code:
+            mc = "!{}".format(self._motor_code)
+
+
+        params = {'id': self._the_id, 'command': self._device + "-" + command + mc, 'hash': str(time.time()).strip(".")[-7:]}
 
         r = requests.get(url=url, params=params)
 

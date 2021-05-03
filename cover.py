@@ -31,6 +31,7 @@ from .const import (
     CONF_PORT,
     CONF_RAIL,
     CONF_PERCENT_SUPPORT,
+    CONF_MOTOR_CODE,
     DATA_NEOSMARTBLINDS,
     CMD_UP,
     CMD_DOWN,
@@ -72,6 +73,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_PORT, default=8838): cv.port,
         vol.Required(CONF_RAIL, default=1): cv.positive_int,
         vol.Required(CONF_PERCENT_SUPPORT, default=0): cv.positive_int,
+        vol.Required(CONF_MOTOR_CODE, default=''): cv.string,
     }
 )
 
@@ -89,6 +91,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
         config.get(CONF_PORT),
         config.get(CONF_RAIL),
         config.get(CONF_PERCENT_SUPPORT),
+        config.get(CONF_MOTOR_CODE)
         )
     add_entities([cover])
 
@@ -96,7 +99,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
 class NeoSmartBlindsCover(CoverEntity):
     """Representation of a NeoSmartBlinds cover."""
 
-    def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port, rail, percent_support):
+    def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port, rail, percent_support, motor_code):
         """Initialize the cover."""
         self.home_assistant = home_assistant
 
@@ -111,6 +114,7 @@ class NeoSmartBlindsCover(CoverEntity):
         self._port = port
         self._rail = rail
         self._percent_support = percent_support
+        self._motor_code = motor_code
         self._client = NeoSmartBlind(self._host,
                                      self._the_id,
                                      self._device,
@@ -118,7 +122,8 @@ class NeoSmartBlindsCover(CoverEntity):
                                      self._port,
                                      self._protocol,
                                      self._rail,
-                                     self._percent_support)
+                                     self._percent_support,
+                                     self._motor_code)
 
         self.home_assistant.data[DATA_NEOSMARTBLINDS].append(self._client)
 

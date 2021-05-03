@@ -7,6 +7,7 @@ CONF_PROTOCOL = "protocol"
 CONF_PORT = "port"
 CONF_RAIL = "rail"
 CONF_PERCENT_SUPPORT = "percent_support"
+CONF_MOTOR_CODE = "motor_code"
 
 CMD_UP = "up"
 CMD_DOWN = "dn"
