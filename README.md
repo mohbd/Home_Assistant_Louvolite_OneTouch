@@ -32,6 +32,7 @@ cover:
     close_time: 30
     rail: 1
     percent_support: 1
+    motor_code: bf
 ```
 
 ## Configuration variables
@@ -75,7 +76,7 @@ Getting the codes:
 - Room Code: will control all blinds in that room
 - Blind Code: will controll only that blind
 
-**“​ID1.ID2-CHANNEL"**<br>
+**“​ID1.ID2-CHANNEL”**<br>
 **“ID1”** : controller byte 1, from integer “000” to “255”<br>
 **“.”** : address separator<br>
 **“ID2”** : controller byte 2, from integer “000” to “255”<br>
@@ -94,6 +95,12 @@ Rail Number used to determine top or bottom rail on top down/bottom up blinds. <
 Determines if the blinds/controller support providing a percentage to set the blind position directly. <br>
 0 = No support (Default)<br>
 1 = Supported
+
+**motor_code** _(string)_<br>
+Defines the motor code listed in the neo smart blinds app on your phone.  Listed below the 'Blind Code' on the control page for the blind <br>
+This is required for some smart hubs to work (model C-BR300) 
+
+<br><br>
 
 
 Entity Options in UI:
