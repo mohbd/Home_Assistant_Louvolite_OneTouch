@@ -62,22 +62,45 @@ class NeoSmartBlind:
             self._current_position = pos
             return
 
-        """Logic for blinds that do not support percent positioning"""
-        if pos >= 52:
+        """
+        Logic for blinds that do not support percent positioning
+        0 = closed
+        100 = open
+        i.e.
+        positive delta = up
+        negative delta = down
+        """
+        delta = pos - self._current_position
+        wait = 0
+
+        if delta == 0:
+            return
+
+        """
+        Align with percentage positioning mode (could refactor this into a common path)
+        """
+        if pos > 98:
+            """Unable to send 100 to the API so assume anything greater then 98 is just an open command"""
+            self.open_cover()
+            return
+        if pos < 2:
+            """Assume anything greater less than 2 is just a close command"""
+            self.close_cover()
+            return
+
+        if delta > 0:
             self.up_command()
-            wait1 = (pos - 50)*2
-            wait = (wait1*self._close_time)/100
-            LOGGER.info(wait)
-            time.sleep(wait)
-            self.send_command(CMD_STOP)
-            return            
-        if pos <= 49:
+            wait = (delta * self._close_time)/100
+
+        if delta < 0:
             self.down_command()
-            wait1 = (50 - pos)*2
-            wait = (wait1*self._close_time)/100
+            wait = (delta * self._close_time)/-100
+
+        if wait > 0:
             LOGGER.info(wait)
             time.sleep(wait)
             self.send_command(CMD_STOP)
+            self._current_position = pos
             return
 
     """Open blinds fully"""
