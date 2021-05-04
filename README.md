@@ -149,3 +149,5 @@ Micro-Down
    
    **Setting favorite postion 2** Use the tilt slider to select a value greater than 50
 
+
+## [Join the Discord](https://discord.gg/dFtMCQJmnM)
