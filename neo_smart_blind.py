@@ -18,6 +18,10 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 LOGGER = logging.getLogger()
 
+LEGACY_POSITIONING = 0
+EXPLICIT_POSITIONING = 1
+IMPLICIT_POSITIONING = 2
+
 
 class NeoSmartBlind:
     def __init__(self, host, the_id, device, close_time, port, protocol, rail, percent_support, motor_code):
@@ -31,31 +35,38 @@ class NeoSmartBlind:
         self._percent_support = percent_support
         self._current_position = 50
         self._motor_code = motor_code
-        if self._percent_support:
-            self._fav_check = 'tilt'
-        else:
-            self._fav_check = 'position'
+
 
     """Adjust the blind based on the pos value send"""
     def adjust_blind(self, pos):
 
         """Legacy support for using position to set favorites"""
-        if self._fav_check == 'position' and (pos == 50 or pos == 51):
+        if self._percent_support == LEGACY_POSITIONING 
+            if pos == 50 or pos == 51):
             self.set_fav_position(pos)
             return
 
-        """Logic for blinds that support percent positioning"""
-        if self._percent_support:
-            """NeoBlinds works off of percent closed, but HA works off of percent open, so need to invert the percentage"""
-            closed_pos = 100 - pos
+        delta = pos - self._current_position
+
+        if delta == 0:
+            return
+
             if pos > 98:
-                """Unable to send 100 to the API so assume anything greater then 98 is just an open command"""
+            """
+            Unable to send 100 to the API so assume anything greater then 98 is just an open command.
+            Use the same logic irrespective of mode for consistency.            
+            """
                 self.open_cover()
                 return
             if pos < 2:
                 """Assume anything greater less than 2 is just a close command"""
                 self.close_cover()
                 return
+
+        """Logic for blinds that support percent positioning"""
+        if self._percent_support == EXPLICIT_POSITIONING:
+            """NeoBlinds works off of percent closed, but HA works off of percent open, so need to invert the percentage"""
+            closed_pos = 100 - pos
             padded_position = f'{closed_pos:02}'
             LOGGER.info('Sending ' + padded_position)
             self.send_command(padded_position)
@@ -70,23 +81,7 @@ class NeoSmartBlind:
         positive delta = up
         negative delta = down
         """
-        delta = pos - self._current_position
         wait = 0
-
-        if delta == 0:
-            return
-
-        """
-        Align with percentage positioning mode (could refactor this into a common path)
-        """
-        if pos > 98:
-            """Unable to send 100 to the API so assume anything greater then 98 is just an open command"""
-            self.open_cover()
-            return
-        if pos < 2:
-            """Assume anything greater less than 2 is just a close command"""
-            self.close_cover()
-            return
 
         if delta > 0:
             self.up_command()
@@ -101,6 +96,7 @@ class NeoSmartBlind:
             time.sleep(wait)
             self.send_command(CMD_STOP)
             self._current_position = pos
+        
             return
 
     """Open blinds fully"""
