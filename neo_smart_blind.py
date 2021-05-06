@@ -41,27 +41,30 @@ class NeoSmartBlind:
     def adjust_blind(self, pos):
 
         """Legacy support for using position to set favorites"""
-        if self._percent_support == LEGACY_POSITIONING 
-            if pos == 50 or pos == 51):
-            self.set_fav_position(pos)
+        if self._percent_support == LEGACY_POSITIONING:
+            if pos == 50 or pos == 51:
+                self.set_fav_position(pos)
             return
 
-        delta = pos - self._current_position
+        """Always allow full open / close commands to get through"""
 
-        if delta == 0:
-            return
-
-            if pos > 98:
+        if pos > 98:
             """
             Unable to send 100 to the API so assume anything greater then 98 is just an open command.
             Use the same logic irrespective of mode for consistency.            
             """
-                self.open_cover()
-                return
-            if pos < 2:
-                """Assume anything greater less than 2 is just a close command"""
-                self.close_cover()
-                return
+            self.open_cover()
+            return
+        if pos < 2:
+            """Assume anything greater less than 2 is just a close command"""
+            self.close_cover()
+            return
+
+        """Check for any change in position, only act if it has changed"""
+        delta = pos - self._current_position
+
+        if delta == 0:
+            return
 
         """Logic for blinds that support percent positioning"""
         if self._percent_support == EXPLICIT_POSITIONING:
@@ -97,7 +100,7 @@ class NeoSmartBlind:
             self.send_command(CMD_STOP)
             self._current_position = pos
         
-            return
+        return
 
     """Open blinds fully"""
     def open_cover(self):
