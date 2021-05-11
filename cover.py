@@ -182,7 +182,7 @@ class NeoSmartBlindsCover(CoverEntity):
 
     def close_cover(self, **kwargs):
         self._client.down_command()
-        wait = ((100 - self._current_position) * self._close_time)/100
+        wait = (self._current_position * self._close_time)/100
         self._current_position = 0
 
         self.async_write_ha_state()
