@@ -13,15 +13,16 @@ from .const import (
     CMD_FAV,
     CMD_FAV_1,
     CMD_FAV_2,
+    LEGACY_POSITIONING,
+    EXPLICIT_POSITIONING,
+    IMPLICIT_POSITIONING,
+    ACTION_STOPPED,
+    ACTION_OPENING,
+    ACTION_CLOSING
 )
 
 _LOGGER = logging.getLogger(__name__)
 LOGGER = logging.getLogger()
-
-LEGACY_POSITIONING = 0
-EXPLICIT_POSITIONING = 1
-IMPLICIT_POSITIONING = 2
-
 
 class NeoSmartBlind:
     def __init__(self, host, the_id, device, close_time, port, protocol, rail, percent_support, motor_code):
@@ -35,6 +36,7 @@ class NeoSmartBlind:
         self._percent_support = percent_support
         self._current_position = 50
         self._motor_code = motor_code
+        self._current_action = ACTION_STOPPED
 
 
     """Adjust the blind based on the pos value send"""
@@ -53,12 +55,10 @@ class NeoSmartBlind:
             Unable to send 100 to the API so assume anything greater then 98 is just an open command.
             Use the same logic irrespective of mode for consistency.            
             """
-            self.open_cover()
-            return
+            return self.open_cover()
         if pos < 2:
             """Assume anything greater less than 2 is just a close command"""
-            self.close_cover()
-            return
+            return self.close_cover()
 
         """Check for any change in position, only act if it has changed"""
         delta = pos - self._current_position
@@ -88,45 +88,70 @@ class NeoSmartBlind:
 
         if delta > 0:
             self.up_command()
+            self._current_action = ACTION_OPENING
             wait = (delta * self._close_time)/100
 
         if delta < 0:
             self.down_command()
+            self._current_action = ACTION_CLOSING
             wait = (delta * self._close_time)/-100
 
         if wait > 0:
-            LOGGER.info(wait)
-            time.sleep(wait)
-            self.send_command(CMD_STOP)
             self._current_position = pos
+            def stop_it():
+                LOGGER.info('Sleeping for {}, then stopping'.format(wait))
+                time.sleep(wait)
+                self.stop_cover()
+
+            return stop_it
         
         return
 
     """Open blinds fully"""
     def open_cover(self):
         self.up_command()
+        wait = ((100 - self._current_position) * self._close_time)/100
         self._current_position = 100
-        return
+        def wait_for_open():
+            LOGGER.info('Sleeping for {} to allow for open'.format(wait))
+            time.sleep(wait)
+            self._current_action = ACTION_STOPPED
+
+        return wait_for_open
 
     """Close blinds fully"""
     def close_cover(self):
         self.down_command()
+        wait = ((100 - self._current_position) * self._close_time)/100
         self._current_position = 0
-        return
+        def wait_for_close():
+            LOGGER.info('Sleeping for {} to allow for close'.format(wait))
+            time.sleep(wait)
+            self._current_action = ACTION_STOPPED
+
+        return wait_for_close
+
+    def stop_cover(self):
+        self.send_command(CMD_STOP)
+        self._current_action = ACTION_STOPPED
 
     """Send down command with rail support"""
     def down_command(self):
         if self._rail == 1:
+            self._current_action = ACTION_CLOSING
             self.send_command(CMD_DOWN)
         elif self._rail == 2:
+            self._current_action = ACTION_CLOSING
             self.send_command(CMD_DOWN2)
         return
 
     """Send up command with rail support"""
     def up_command(self):
         if self._rail == 1:
+            self._current_action = ACTION_OPENING
             self.send_command(CMD_UP)
         elif self._rail == 2:
+            self._current_action = ACTION_OPENING
             self.send_command(CMD_UP2)
         return
 
@@ -150,6 +175,15 @@ class NeoSmartBlind:
     def get_position(self):
         LOGGER.info('Current Position is: ' + str(self._current_position))
         return self._current_position
+
+    def is_closed(self):
+        return self._current_position == 0
+
+    def is_closing(self):
+        return self._current_action == ACTION_CLOSING
+
+    def is_opening(self):
+        return self._current_action == ACTION_OPENING
 
     def send_command(self, command):
         """Command handler to send based on correct protocol"""

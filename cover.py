@@ -155,7 +155,17 @@ class NeoSmartBlindsCover(CoverEntity):
     @property
     def is_closed(self):
         """Return if the cover is closed."""
-        return None
+        return self._client.is_closed()
+
+    @property
+    def is_closing(self):
+        """Return if the cover is closing."""
+        return self._client.is_closing()
+
+    @property
+    def is_opening(self):
+        """Return if the cover is opening."""
+        return self._client.is_opening()
 
     @property
     def current_cover_position(self):
@@ -169,17 +179,23 @@ class NeoSmartBlindsCover(CoverEntity):
         return 50
 
     def close_cover(self, **kwargs):
-        self._client.close_cover()
+        follow_up = self._client.close_cover()
         self.async_write_ha_state()
+        if follow_up is not None:
+            follow_up()
+            self.async_write_ha_state()
         """Close the cover."""
 
     def open_cover(self, **kwargs):
-        self._client.open_cover()
+        follow_up = self._client.open_cover()
         self.async_write_ha_state()
+        if follow_up is not None:
+            follow_up()
+            self.async_write_ha_state()
         """Open the cover."""
 
     def stop_cover(self, **kwargs):
-        self._client.send_command(CMD_STOP)
+        self._client.stop_cover()
         """Stop the cover."""
         
     def open_cover_tilt(self, **kwargs):
@@ -197,8 +213,11 @@ class NeoSmartBlindsCover(CoverEntity):
         """Close the cover tilt."""
 
     def set_cover_position(self, **kwargs):
-        self._client.adjust_blind(kwargs['position'])
+        follow_up = self._client.adjust_blind(kwargs['position'])
         self.async_write_ha_state()
+        if follow_up is not None:
+            follow_up()
+            self.async_write_ha_state()
         """Move the cover to a specific position."""
 
     def set_cover_tilt_position(self, **kwargs):
