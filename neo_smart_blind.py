@@ -12,178 +12,72 @@ from .const import (
     CMD_STOP,
     CMD_FAV,
     CMD_FAV_1,
-    CMD_FAV_2,
-    LEGACY_POSITIONING,
-    EXPLICIT_POSITIONING,
-    IMPLICIT_POSITIONING,
-    ACTION_STOPPED,
-    ACTION_OPENING,
-    ACTION_CLOSING
+    CMD_FAV_2
 )
 
 _LOGGER = logging.getLogger(__name__)
 LOGGER = logging.getLogger()
 
 class NeoSmartBlind:
-    def __init__(self, host, the_id, device, close_time, port, protocol, rail, percent_support, motor_code):
+    def __init__(self, host, the_id, device, port, protocol, rail, motor_code):
         self._host = host
         self._port = port
         self._protocol = protocol
         self._the_id = the_id
         self._device = device
-        self._close_time = int(close_time)
         self._rail = rail
-        self._percent_support = percent_support
-        self._current_position = 50
         self._motor_code = motor_code
-        self._current_action = ACTION_STOPPED
 
-
-    """Adjust the blind based on the pos value send"""
-    def adjust_blind(self, pos):
-
-        """Legacy support for using position to set favorites"""
-        if self._percent_support == LEGACY_POSITIONING:
-            if pos == 50 or pos == 51:
-                self.set_fav_position(pos)
-            return
-
-        """Always allow full open / close commands to get through"""
-
-        if pos > 98:
-            """
-            Unable to send 100 to the API so assume anything greater then 98 is just an open command.
-            Use the same logic irrespective of mode for consistency.            
-            """
-            return self.open_cover()
-        if pos < 2:
-            """Assume anything greater less than 2 is just a close command"""
-            return self.close_cover()
-
-        """Check for any change in position, only act if it has changed"""
-        delta = pos - self._current_position
-
-        if delta == 0:
-            return
-
-        """Logic for blinds that support percent positioning"""
-        if self._percent_support == EXPLICIT_POSITIONING:
-            """NeoBlinds works off of percent closed, but HA works off of percent open, so need to invert the percentage"""
-            closed_pos = 100 - pos
-            padded_position = f'{closed_pos:02}'
-            LOGGER.info('Sending ' + padded_position)
-            self.send_command(padded_position)
-            self._current_position = pos
-            return
-
-        """
-        Logic for blinds that do not support percent positioning
-        0 = closed
-        100 = open
-        i.e.
-        positive delta = up
-        negative delta = down
-        """
-        wait = 0
-
-        if delta > 0:
-            self.up_command()
-            self._current_action = ACTION_OPENING
-            wait = (delta * self._close_time)/100
-
-        if delta < 0:
-            self.down_command()
-            self._current_action = ACTION_CLOSING
-            wait = (delta * self._close_time)/-100
-
-        if wait > 0:
-            self._current_position = pos
-            def stop_it():
-                LOGGER.info('Sleeping for {}, then stopping'.format(wait))
-                time.sleep(wait)
-                self.stop_cover()
-
-            return stop_it
-        
+    def set_position_by_percent(self, pos):
+        """NeoBlinds works off of percent closed, but HA works off of percent open, so need to invert the percentage"""
+        closed_pos = 100 - pos
+        padded_position = f'{closed_pos:02}'
+        LOGGER.info('Sending ' + padded_position)
+        self.send_command(padded_position)
         return
 
-    """Open blinds fully"""
-    def open_cover(self):
-        self.up_command()
-        wait = ((100 - self._current_position) * self._close_time)/100
-        self._current_position = 100
-        def wait_for_open():
-            LOGGER.info('Sleeping for {} to allow for open'.format(wait))
-            time.sleep(wait)
-            self._current_action = ACTION_STOPPED
-
-        return wait_for_open
-
-    """Close blinds fully"""
-    def close_cover(self):
-        self.down_command()
-        wait = ((100 - self._current_position) * self._close_time)/100
-        self._current_position = 0
-        def wait_for_close():
-            LOGGER.info('Sleeping for {} to allow for close'.format(wait))
-            time.sleep(wait)
-            self._current_action = ACTION_STOPPED
-
-        return wait_for_close
-
-    def stop_cover(self):
+    def stop_command(self):
         self.send_command(CMD_STOP)
-        self._current_action = ACTION_STOPPED
+
+    def open_cover_tilt(self, **kwargs):
+        if self._rail == 1:
+            self.send_command(CMD_MICRO_UP)
+        elif self._rail == 2:
+            self.send_command(CMD_MICRO_UP2)
+        """Open the cover tilt."""
+        
+    def close_cover_tilt(self, **kwargs):
+        if self._rail == 1:
+            self.send_command(CMD_MICRO_DOWN)
+        elif self._rail == 2:
+            self.send_command(CMD_MICRO_DOWN2)
+        """Close the cover tilt."""
 
     """Send down command with rail support"""
     def down_command(self):
         if self._rail == 1:
-            self._current_action = ACTION_CLOSING
             self.send_command(CMD_DOWN)
         elif self._rail == 2:
-            self._current_action = ACTION_CLOSING
             self.send_command(CMD_DOWN2)
         return
 
     """Send up command with rail support"""
     def up_command(self):
         if self._rail == 1:
-            self._current_action = ACTION_OPENING
             self.send_command(CMD_UP)
         elif self._rail == 2:
-            self._current_action = ACTION_OPENING
             self.send_command(CMD_UP2)
-        return
-
-    def adjust_blind_tilt(self, pos):
-        LOGGER.info('Tilt position set to: ' + str(pos))
-        self.set_fav_position(pos)
         return
 
     def set_fav_position(self, pos):
         LOGGER.info('Setting fav: ' + str(pos))
         if pos <= 50:
             self.send_command(CMD_FAV)
-            self._current_position = 50
-            return
+            return 50
         if pos >= 51:
             self.send_command(CMD_FAV_2)
-            self._current_position = 51
-            return
+            return 51
         return
-
-    def get_position(self):
-        LOGGER.info('Current Position is: ' + str(self._current_position))
-        return self._current_position
-
-    def is_closed(self):
-        return self._current_position == 0
-
-    def is_closing(self):
-        return self._current_action == ACTION_CLOSING
-
-    def is_opening(self):
-        return self._current_action == ACTION_OPENING
 
     def send_command(self, command):
         """Command handler to send based on correct protocol"""

@@ -1,5 +1,6 @@
 """Support for NeoSmartBlinds covers."""
 import logging
+import time
 
 from homeassistant.components.cover import PLATFORM_SCHEMA
 from custom_components.neosmartblinds.neo_smart_blind import NeoSmartBlind
@@ -45,7 +46,13 @@ from .const import (
     CMD_UP3,
     CMD_DOWN3,
     CMD_TDBU_OPEN,
-    CMD_TDBU_CLOSE
+    CMD_TDBU_CLOSE,
+    LEGACY_POSITIONING,
+    EXPLICIT_POSITIONING,
+    IMPLICIT_POSITIONING,
+    ACTION_STOPPED,
+    ACTION_OPENING,
+    ACTION_CLOSING
 )
 
 SUPPORT_NEOSMARTBLINDS = (
@@ -107,23 +114,18 @@ class NeoSmartBlindsCover(CoverEntity):
             self.home_assistant.data[DATA_NEOSMARTBLINDS] = []
 
         self._name = name
-        self._host = host
-        self._the_id = the_id
-        self._device = device
-        self._protocol = protocol
-        self._port = port
-        self._rail = rail
+        self._current_position = 50
         self._percent_support = percent_support
-        self._motor_code = motor_code
-        self._client = NeoSmartBlind(self._host,
-                                     self._the_id,
-                                     self._device,
-                                     close_time,
-                                     self._port,
-                                     self._protocol,
-                                     self._rail,
-                                     self._percent_support,
-                                     self._motor_code)
+        self._close_time = int(close_time)
+        self._current_action = ACTION_STOPPED
+
+        self._client = NeoSmartBlind(host,
+                                     the_id,
+                                     device,
+                                     port,
+                                     protocol,
+                                     rail,
+                                     motor_code)
 
         self.home_assistant.data[DATA_NEOSMARTBLINDS].append(self._client)
 
@@ -135,7 +137,7 @@ class NeoSmartBlindsCover(CoverEntity):
     @property
     def unique_id(self):
         """Return a unique id for the entity"""
-        return DATA_NEOSMARTBLINDS + "." + self._device
+        return DATA_NEOSMARTBLINDS + "." + self._client._device
 
     @property
     def should_poll(self):
@@ -155,23 +157,23 @@ class NeoSmartBlindsCover(CoverEntity):
     @property
     def is_closed(self):
         """Return if the cover is closed."""
-        return self._client.is_closed()
+        return self._current_position == 0
 
     @property
     def is_closing(self):
         """Return if the cover is closing."""
-        return self._client.is_closing()
+        return self._current_action == ACTION_CLOSING
 
     @property
     def is_opening(self):
         """Return if the cover is opening."""
-        return self._client.is_opening()
+        return self._current_action == ACTION_OPENING
 
     @property
     def current_cover_position(self):
         """Return current position of cover."""
-        LOGGER.warning('Cover Position is: '+ str(self._client.get_position()))
-        return self._client.get_position()
+        LOGGER.info('Cover Position is: '+ str(self._current_position))
+        return self._current_position
 
     @property
     def current_cover_tilt_position(self):
@@ -179,41 +181,44 @@ class NeoSmartBlindsCover(CoverEntity):
         return 50
 
     def close_cover(self, **kwargs):
-        follow_up = self._client.close_cover()
+        self._client.down_command()
+        wait = ((100 - self._current_position) * self._close_time)/100
+        self._current_position = 0
+
         self.async_write_ha_state()
-        if follow_up is not None:
-            follow_up()
-            self.async_write_ha_state()
+        LOGGER.info('Sleeping for {} to allow for close'.format(wait))
+        time.sleep(wait)
+        self._current_action = ACTION_STOPPED
+        self.async_write_ha_state()
         """Close the cover."""
 
     def open_cover(self, **kwargs):
-        follow_up = self._client.open_cover()
+        self._client.up_command()
+        wait = ((100 - self._current_position) * self._close_time)/100
+        self._current_position = 100
+
         self.async_write_ha_state()
-        if follow_up is not None:
-            follow_up()
-            self.async_write_ha_state()
+        LOGGER.info('Sleeping for {} to allow for open'.format(wait))
+        time.sleep(wait)
+        self._current_action = ACTION_STOPPED
+        self.async_write_ha_state()
         """Open the cover."""
 
     def stop_cover(self, **kwargs):
-        self._client.stop_cover()
+        self._client.stop_command()
+        self._current_action = ACTION_STOPPED
         """Stop the cover."""
         
     def open_cover_tilt(self, **kwargs):
-        if self._rail == 1:
-            self._client.send_command(CMD_MICRO_UP)
-        elif self._rail == 2:
-            self._client.send_command(CMD_MICRO_UP2)
+        self._client.open_cover_tilt()
         """Open the cover tilt."""
         
     def close_cover_tilt(self, **kwargs):
-        if self._rail == 1:
-            self._client.send_command(CMD_MICRO_DOWN)
-        elif self._rail == 2:
-            self._client.send_command(CMD_MICRO_DOWN2)
+        self._client.close_cover_tilt()
         """Close the cover tilt."""
 
     def set_cover_position(self, **kwargs):
-        follow_up = self._client.adjust_blind(kwargs['position'])
+        follow_up = self.adjust_blind(kwargs['position'])
         self.async_write_ha_state()
         if follow_up is not None:
             follow_up()
@@ -221,6 +226,71 @@ class NeoSmartBlindsCover(CoverEntity):
         """Move the cover to a specific position."""
 
     def set_cover_tilt_position(self, **kwargs):
-        self._client.adjust_blind_tilt(kwargs['tilt_position'])
+        self._current_position = self._client.set_fav_position(kwargs['tilt_position'])
         self.async_write_ha_state()
 
+    """Adjust the blind based on the pos value send"""
+    def adjust_blind(self, pos):
+
+        """Legacy support for using position to set favorites"""
+        if self._percent_support == LEGACY_POSITIONING:
+            if pos == 50 or pos == 51:
+                self._client.set_fav_position(pos)
+            return
+
+        """Always allow full open / close commands to get through"""
+
+        if pos > 98:
+            """
+            Unable to send 100 to the API so assume anything greater then 98 is just an open command.
+            Use the same logic irrespective of mode for consistency.            
+            """
+            self.open_cover()
+            return
+        if pos < 2:
+            """Assume anything greater less than 2 is just a close command"""
+            self.close_cover()
+            return
+
+        """Check for any change in position, only act if it has changed"""
+        delta = pos - self._current_position
+
+        if delta == 0:
+            return
+
+        """Logic for blinds that support percent positioning"""
+        if self._percent_support == EXPLICIT_POSITIONING:
+            self._client.set_position_by_percent(pos)
+            self._current_position = pos
+            return
+
+        """
+        Logic for blinds that do not support percent positioning
+        0 = closed
+        100 = open
+        i.e.
+        positive delta = up
+        negative delta = down
+        """
+        wait = 0
+
+        if delta > 0:
+            self._client.up_command()
+            self._current_action = ACTION_OPENING
+            wait = (delta * self._close_time)/100
+
+        if delta < 0:
+            self._client.down_command()
+            self._current_action = ACTION_CLOSING
+            wait = (delta * self._close_time)/-100
+
+        if wait > 0:
+            self._current_position = pos
+            def stop_it():
+                LOGGER.info('Sleeping for {}, then stopping'.format(wait))
+                time.sleep(wait)
+                self.stop_cover()
+
+            return stop_it
+        
+        return
