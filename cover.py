@@ -135,7 +135,9 @@ class NeoSmartBlindsCover(CoverEntity):
     @property
     def unique_id(self):
         """Return a unique id for the entity"""
-        return DATA_NEOSMARTBLINDS + "." + self._device
+
+        return "{}.{}.{}.{}".format(DATA_NEOSMARTBLINDS, self._device, self._motor_code, self._rail)
+        # return DATA_NEOSMARTBLINDS + "." + self._device + "." + self._rail
 
     @property
     def should_poll(self):
