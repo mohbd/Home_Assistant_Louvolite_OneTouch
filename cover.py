@@ -104,6 +104,9 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
         )
     add_entities([cover])
 
+def compute_wait_time(larger, smaller, close_time):
+    return ((larger - smaller) * close_time) / 100
+
 class PositioningRequest(object):
     def __init__(self, target_position, starting_position):
         self._target_position = target_position
@@ -113,18 +116,30 @@ class PositioningRequest(object):
         self._active_wait = None
         self._adjusted_wait = None
 
-    async def wait_for_move_up(self, cover):
-        was_interrupted = False
-
-        self._active_wait = ((self._target_position - self._starting_position) * cover._close_time) / 100
-        try:
-            LOGGER.info('Sleeping for {} to allow for open'.format(self._active_wait))
+    async def async_wait(self, reason):
+        elapsed = 0
+        while True:
+            LOGGER.info('Sleeping for {} to allow for {} to {}, elapsed={}'.format(self._active_wait, reason, self._target_position, elapsed))
             await asyncio.wait_for(
-                asyncio.create_task(self._interrupt.wait()), self._active_wait
+                asyncio.create_task(self._interrupt.wait()), self._active_wait - elapsed
                 )
             elapsed = time.time() - self._start
-            if elapsed < self._active_wait:
+            if self._adjusted_wait is not None:
                 #compute adjusted target position given interrupt
+                self._active_wait = self._adjusted_wait
+                self._adjusted_wait = None
+                self._interrupt.clear()
+            else:
+                break
+        return elapsed
+
+    async def async_wait_for_move_up(self, cover):
+        was_interrupted = False
+
+        self._active_wait = compute_wait_time(self._target_position, self._starting_position, cover._close_time)
+        try:
+            elapsed = await self.async_wait('open')
+            if elapsed < self._active_wait:
                 self._target_position = int(
                     self._starting_position + (self._target_position - self._starting_position) * elapsed / self._active_wait
                     )
@@ -135,18 +150,13 @@ class PositioningRequest(object):
 
         return was_interrupted
 
-    async def wait_for_move_down(self, cover):
+    async def async_wait_for_move_down(self, cover):
         was_interrupted = False
 
-        self._active_wait = ((self._starting_position - self._target_position) * cover._close_time) / 100
+        self._active_wait = compute_wait_time(self._starting_position, self._target_position, cover._close_time)
         try:
-            LOGGER.info('Sleeping for {} to allow for close'.format(self._active_wait))
-            await asyncio.wait_for(
-                asyncio.create_task(self._interrupt.wait()), self._active_wait
-                )
-            elapsed = time.time() - self._start
+            elapsed = await self.async_wait('close')
             if elapsed < self._active_wait:
-                #compute adjusted target position given interrupt
                 self._target_position = int(
                     self._starting_position - (self._starting_position - self._target_position) * elapsed / self._active_wait
                     )
@@ -171,10 +181,22 @@ class PositioningRequest(object):
                 self._starting_position - (self._starting_position - self._target_position) * elapsed / self._active_wait
                 )
 
-    def adjust(self, target_position):
+    def adjust(self, target_position, cover):
         """Return estimated current position if the ongoing request can't be adjusted"""
         cur = self.estimate_current_position()
-        LOGGER.info('Estimated position is {}'.format(cur))
+        if self.is_moving_up():
+            if cur <= target_position:
+                self._target_position = target_position
+                self._adjusted_wait = compute_wait_time(target_position, self._starting_position, cover._close_time)
+                self.interrupt()
+                return
+        else:
+            if cur >= target_position:
+                self._target_position = target_position
+                self._adjusted_wait = compute_wait_time(self._starting_position, target_position, cover._close_time)
+                self.interrupt()
+                return
+        LOGGER.info('Estimated position is {}, force direction change'.format(cur))
         return cur
 
     def interrupt(self):
@@ -266,14 +288,14 @@ class NeoSmartBlindsCover(CoverEntity):
         await self.async_close_cover_to(0)
         
     async def async_close_cover_to(self, target_position, move_command=None):
-        await self.hass.async_add_executor_job(self._client.down_command if move_command is None else move_command)
-
         self._stopped = asyncio.Event()
         self._pending_positioning_command = PositioningRequest(target_position, self._current_position)
 
         self._current_position = target_position
         self._current_action = ACTION_CLOSING
         self.async_write_ha_state()
+
+        await self.hass.async_add_executor_job(self._client.down_command if move_command is None else move_command)
 
         LOGGER.info('closing to {}'.format(target_position))
         self.hass.async_create_task(self.async_cover_closed_to_position())
@@ -283,8 +305,6 @@ class NeoSmartBlindsCover(CoverEntity):
         await self.async_open_cover_to(100)
 
     async def async_open_cover_to(self, target_position, move_command=None):
-        await self.hass.async_add_executor_job(self._client.up_command if move_command is None else move_command)
-
         self._stopped = asyncio.Event()
         self._pending_positioning_command = PositioningRequest(target_position, self._current_position)
 
@@ -292,17 +312,19 @@ class NeoSmartBlindsCover(CoverEntity):
         self._current_action = ACTION_OPENING
         self.async_write_ha_state()
 
+        await self.hass.async_add_executor_job(self._client.up_command if move_command is None else move_command)
+
         LOGGER.info('opening to {}'.format(target_position))
         self.hass.async_create_task(self.async_cover_opened_to_position())
 
     async def async_cover_closed_to_position(self):
-        if not await self._pending_positioning_command.wait_for_move_down(self):
+        if not await self._pending_positioning_command.async_wait_for_move_down(self):
             if self._pending_positioning_command._target_position != 0:
                 await self.hass.async_add_executor_job(self._client.stop_command)
         self.cover_change_complete()
 
     async def async_cover_opened_to_position(self):
-        if not await self._pending_positioning_command.wait_for_move_up(self):
+        if not await self._pending_positioning_command.async_wait_for_move_up(self):
             if self._pending_positioning_command._target_position != 100:
                 await self.hass.async_add_executor_job(self._client.stop_command)
         self.cover_change_complete()
@@ -375,11 +397,12 @@ class NeoSmartBlindsCover(CoverEntity):
         if not, issue a positioning command
         """
         if self._pending_positioning_command is not None:
-            estimated_position = self._pending_positioning_command.adjust(pos)
+            estimated_position = self._pending_positioning_command.adjust(pos, self)
             if estimated_position is not None:
                 #STOP then issue new command
                 await self.async_stop_cover()
                 delta = pos - estimated_position
+            #else: adjustment handled silently, leave delta at zero so no command is sent
         else:
             delta = pos - self._current_position
 
