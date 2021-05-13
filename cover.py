@@ -110,21 +110,23 @@ class PositioningRequest(object):
         self._starting_position = starting_position
         self._interrupt = asyncio.Event()
         self._start = time.time()
+        self._active_wait = None
+        self._adjusted_wait = None
 
     async def wait_for_move_up(self, cover):
         was_interrupted = False
 
-        wait = ((self._target_position - self._starting_position) * cover._close_time) / 100
+        self._active_wait = ((self._target_position - self._starting_position) * cover._close_time) / 100
         try:
-            LOGGER.info('Sleeping for {} to allow for open'.format(wait))
+            LOGGER.info('Sleeping for {} to allow for open'.format(self._active_wait))
             await asyncio.wait_for(
-                asyncio.create_task(self._interrupt.wait()), wait
+                asyncio.create_task(self._interrupt.wait()), self._active_wait
                 )
             elapsed = time.time() - self._start
-            if elapsed < wait:
+            if elapsed < self._active_wait:
                 #compute adjusted target position given interrupt
                 self._target_position = int(
-                    self._starting_position + (self._target_position - self._starting_position) * elapsed / wait
+                    self._starting_position + (self._target_position - self._starting_position) * elapsed / self._active_wait
                     )
                 was_interrupted = True
         except asyncio.TimeoutError:
@@ -136,17 +138,17 @@ class PositioningRequest(object):
     async def wait_for_move_down(self, cover):
         was_interrupted = False
 
-        wait = ((self._starting_position - self._target_position) * cover._close_time) / 100
+        self._active_wait = ((self._starting_position - self._target_position) * cover._close_time) / 100
         try:
-            LOGGER.info('Sleeping for {} to allow for close'.format(wait))
+            LOGGER.info('Sleeping for {} to allow for close'.format(self._active_wait))
             await asyncio.wait_for(
-                asyncio.create_task(self._interrupt.wait()), wait
+                asyncio.create_task(self._interrupt.wait()), self._active_wait
                 )
             elapsed = time.time() - self._start
-            if elapsed < wait:
+            if elapsed < self._active_wait:
                 #compute adjusted target position given interrupt
                 self._target_position = int(
-                    self._starting_position - (self._starting_position - self._target_position) * elapsed / wait
+                    self._starting_position - (self._starting_position - self._target_position) * elapsed / self._active_wait
                     )
                 was_interrupted = True
         except asyncio.TimeoutError:
@@ -155,6 +157,25 @@ class PositioningRequest(object):
 
         return was_interrupted
 
+    def is_moving_up(self):
+        return self._target_position > self._starting_position
+
+    def estimate_current_position(self):
+        elapsed = time.time() - self._start
+        if self.is_moving_up():
+            return int(
+                self._starting_position + (self._target_position - self._starting_position) * elapsed / self._active_wait
+                )            
+        else:
+            return int(
+                self._starting_position - (self._starting_position - self._target_position) * elapsed / self._active_wait
+                )
+
+    def adjust(self, target_position):
+        """Return estimated current position if the ongoing request can't be adjusted"""
+        cur = self.estimate_current_position()
+        LOGGER.info('Estimated position is {}'.format(cur))
+        return cur
 
     def interrupt(self):
         self._interrupt.set()
@@ -177,6 +198,7 @@ class NeoSmartBlindsCover(CoverEntity):
         self._close_time = int(close_time)
         self._current_action = ACTION_STOPPED
         self._pending_positioning_command = None
+        self._stopped = None
 
         self._client = NeoSmartBlind(host,
                                      the_id,
@@ -243,9 +265,10 @@ class NeoSmartBlindsCover(CoverEntity):
         """Close cover."""
         await self.async_close_cover_to(0)
         
-    async def async_close_cover_to(self, target_position, then=None, move_command=None):
+    async def async_close_cover_to(self, target_position, move_command=None):
         await self.hass.async_add_executor_job(self._client.down_command if move_command is None else move_command)
 
+        self._stopped = asyncio.Event()
         self._pending_positioning_command = PositioningRequest(target_position, self._current_position)
 
         self._current_position = target_position
@@ -253,15 +276,16 @@ class NeoSmartBlindsCover(CoverEntity):
         self.async_write_ha_state()
 
         LOGGER.info('closing to {}'.format(target_position))
-        self.hass.async_create_task(self.async_cover_closed() if then is None else then())
+        self.hass.async_create_task(self.async_cover_closed_to_position())
 
     async def async_open_cover(self, **kwargs):
         """Open the cover."""
         await self.async_open_cover_to(100)
 
-    async def async_open_cover_to(self, target_position, then=None, move_command=None):
+    async def async_open_cover_to(self, target_position, move_command=None):
         await self.hass.async_add_executor_job(self._client.up_command if move_command is None else move_command)
 
+        self._stopped = asyncio.Event()
         self._pending_positioning_command = PositioningRequest(target_position, self._current_position)
 
         self._current_position = target_position
@@ -269,24 +293,18 @@ class NeoSmartBlindsCover(CoverEntity):
         self.async_write_ha_state()
 
         LOGGER.info('opening to {}'.format(target_position))
-        self.hass.async_create_task(self.async_cover_opened() if then is None else then())
+        self.hass.async_create_task(self.async_cover_opened_to_position())
 
     async def async_cover_closed_to_position(self):
         if not await self._pending_positioning_command.wait_for_move_down(self):
-            await self.hass.async_add_executor_job(self._client.stop_command)
+            if self._pending_positioning_command._target_position != 0:
+                await self.hass.async_add_executor_job(self._client.stop_command)
         self.cover_change_complete()
 
     async def async_cover_opened_to_position(self):
         if not await self._pending_positioning_command.wait_for_move_up(self):
-            await self.hass.async_add_executor_job(self._client.stop_command)
-        self.cover_change_complete()
-
-    async def async_cover_closed(self):
-        await self._pending_positioning_command.wait_for_move_down(self)
-        self.cover_change_complete()
-
-    async def async_cover_opened(self):
-        await self._pending_positioning_command.wait_for_move_up(self)
+            if self._pending_positioning_command._target_position != 100:
+                await self.hass.async_add_executor_job(self._client.stop_command)
         self.cover_change_complete()
 
     def cover_change_complete(self):
@@ -295,6 +313,7 @@ class NeoSmartBlindsCover(CoverEntity):
             self._current_position = self._pending_positioning_command._target_position
             LOGGER.info('move done {}'.format(self._current_position))
             self._pending_positioning_command = None
+            self._stopped.set()
             self.async_write_ha_state()
 
     async def async_stop_cover(self, **kwargs):
@@ -302,6 +321,8 @@ class NeoSmartBlindsCover(CoverEntity):
         await self.hass.async_add_executor_job(self._client.stop_command)
         if self._pending_positioning_command is not None:
             self._pending_positioning_command.interrupt()
+            await self._stopped.wait()
+            self._stopped = None
         else:
             self._current_action = ACTION_STOPPED
         """Stop the cover."""
@@ -317,10 +338,6 @@ class NeoSmartBlindsCover(CoverEntity):
     async def async_set_cover_position(self, **kwargs):
         """Move the cover to a specific position."""
         await self.async_adjust_blind(kwargs['position'])
-        # self.async_write_ha_state()
-        # if follow_up is not None:
-        #     follow_up()
-        #     self.async_write_ha_state()
 
     def set_cover_tilt_position(self, **kwargs):
         self._current_position = self._client.set_fav_position(kwargs['tilt_position'])
@@ -342,15 +359,13 @@ class NeoSmartBlindsCover(CoverEntity):
             Unable to send 100 to the API so assume anything greater then 98 is just an open command.
             Use the same logic irrespective of mode for consistency.            
             """
-            await self.async_open_cover_to(100)
-            return
+            pos = 100
         if pos < 2:
             """Assume anything greater less than 2 is just a close command"""
-            await self.async_close_cover_to(0)
-            return
+            pos = 0
 
         """Check for any change in position, only act if it has changed"""
-        delta = pos - self._current_position
+        delta = 0
 
         """
         Work out whether the blind is already moving.
@@ -359,18 +374,20 @@ class NeoSmartBlindsCover(CoverEntity):
             If no, cancel the existing timer and issue a fresh positioning command
         if not, issue a positioning command
         """
+        if self._pending_positioning_command is not None:
+            estimated_position = self._pending_positioning_command.adjust(pos)
+            if estimated_position is not None:
+                #STOP then issue new command
+                await self.async_stop_cover()
+                delta = pos - estimated_position
+        else:
+            delta = pos - self._current_position
 
-        if delta > 0:
-            if self._percent_support == EXPLICIT_POSITIONING:
-                pass
-            else:
-                await self.async_open_cover_to(pos, then=self.async_cover_opened_to_position)
+        if delta > 0 or pos == 100:
+            if self._percent_support != EXPLICIT_POSITIONING or pos == 100:
+                await self.async_open_cover_to(pos)
 
-        if delta < 0:
-            if self._percent_support == EXPLICIT_POSITIONING:
-                pass
-            else:
-                await self.async_close_cover_to(pos, then=self.async_cover_closed_to_position)
-        
-        return
+        if delta < 0 or pos == 0:
+            if self._percent_support != EXPLICIT_POSITIONING or pos == 0:
+                await self.async_close_cover_to(pos)
 

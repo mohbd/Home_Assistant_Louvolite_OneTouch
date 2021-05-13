@@ -118,7 +118,7 @@ class NeoSmartBlind:
         if self._motor_code:
             mc = "!{}".format(self._motor_code)
 
-        hash_string = str(datetime.now().microsecond).zfill(6)
+        hash_string = str(datetime.now().microsecond).zfill(7)
         # hash_string = pre_strip[-7:].strip(".")
 
         params = {'id': self._the_id, 'command': self._device + "-" + command + mc, 'hash': hash_string}
