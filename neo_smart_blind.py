@@ -1,6 +1,7 @@
 import logging
 import socket
 import time
+from datetime import datetime
 
 import requests
 
@@ -117,8 +118,10 @@ class NeoSmartBlind:
         if self._motor_code:
             mc = "!{}".format(self._motor_code)
 
+        hash_string = str(datetime.now().microsecond).zfill(6)
+        # hash_string = pre_strip[-7:].strip(".")
 
-        params = {'id': self._the_id, 'command': self._device + "-" + command + mc, 'hash': str(time.time()).strip(".")[-7:]}
+        params = {'id': self._the_id, 'command': self._device + "-" + command + mc, 'hash': hash_string}
 
         r = requests.get(url=url, params=params)
 
@@ -128,3 +131,10 @@ class NeoSmartBlind:
         """Check for error code and log"""
         if r.status_code != 200:
             LOGGER.error("Status Code - {}".format(r.status_code))
+
+
+# 2021-05-13 10:20:38 INFO (SyncWorker_4) [root] Sent: http://<ip>:8838/neo/v1/transmit?id=440036000447393032323330&command=146.215-08-up&hash=.812864
+# 2021-05-13 10:20:38 INFO (SyncWorker_4) [root] Neo Hub Responded with - 
+
+# 2021-05-13 10:30:54 INFO (SyncWorker_6) [root] Sent: http://<ip>:8838/neo/v1/transmit?id=440036000447393032323330&command=146.215-08-sp&hash=4.65143 (from 1620901854.65143)
+# 2021-05-13 10:30:54 INFO (SyncWorker_6) [root] Neo Hub Responded with - 
