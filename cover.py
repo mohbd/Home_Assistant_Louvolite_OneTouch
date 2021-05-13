@@ -1,4 +1,5 @@
 """Support for NeoSmartBlinds covers."""
+import asyncio
 import logging
 import time
 
@@ -18,6 +19,7 @@ from homeassistant.components.cover import (
     CoverEntity,
 )
 
+PARALLEL_UPDATES = 0
 
 from homeassistant.const import (
     CONF_HOST,
@@ -102,6 +104,52 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
         )
     add_entities([cover])
 
+class PositioningRequest(object):
+    def __init__(self, target_position, starting_position):
+        self._target_position = target_position
+        self._starting_position = starting_position
+        self._interrupt = asyncio.Event()
+        self._start = time.time()
+
+    async def wait_for_move_up(self, cover):
+        wait = ((self._target_position - self._starting_position) * cover._close_time) / 100
+        try:
+            LOGGER.info('Sleeping for {} to allow for open'.format(wait))
+            await asyncio.wait_for(
+                asyncio.create_task(self._interrupt.wait()), wait
+                )
+            elapsed = time.time() - self._start
+            if elapsed < wait:
+                #compute adjusted target position given interrupt
+                self._target_position = int(
+                    self._starting_position + (self._target_position - self._starting_position) * elapsed / wait
+                    )
+        except asyncio.TimeoutError:
+            #all done
+            pass 
+
+    async def wait_for_move_down(self, cover):
+        wait = ((self._starting_position - self._target_position) * cover._close_time) / 100
+        try:
+            LOGGER.info('Sleeping for {} to allow for open'.format(wait))
+            await asyncio.wait_for(
+                asyncio.create_task(self._interrupt.wait()), wait
+                )
+            elapsed = time.time() - self._start
+            if elapsed < wait:
+                #compute adjusted target position given interrupt
+                self._target_position = int(
+                    self._starting_position - (self._starting_position - self._target_position) * elapsed / wait
+                    )
+        except asyncio.TimeoutError:
+            #all done
+            pass 
+
+
+    def interrupt(self):
+        self._interrupt.set()
+
+
 
 class NeoSmartBlindsCover(CoverEntity):
     """Representation of a NeoSmartBlinds cover."""
@@ -118,6 +166,7 @@ class NeoSmartBlindsCover(CoverEntity):
         self._percent_support = percent_support
         self._close_time = int(close_time)
         self._current_action = ACTION_STOPPED
+        self._pending_positioning_command = None
 
         self._client = NeoSmartBlind(host,
                                      the_id,
@@ -180,33 +229,56 @@ class NeoSmartBlindsCover(CoverEntity):
         """Return current position of cover tilt."""
         return 50
 
-    def close_cover(self, **kwargs):
-        self._client.down_command()
-        wait = (self._current_position * self._close_time)/100
+    async def async_close_cover(self, **kwargs):
+        """Close cover."""
+
+        await self.hass.async_add_executor_job(self._client.down_command)
+
+        self._pending_positioning_command = PositioningRequest(0, self._current_position)
+
         self._current_position = 0
+        self._current_action = ACTION_CLOSING
+        self.async_write_ha_state()
 
-        self.async_write_ha_state()
-        LOGGER.info('Sleeping for {} to allow for close'.format(wait))
-        time.sleep(wait)
-        self._current_action = ACTION_STOPPED
-        self.async_write_ha_state()
-        """Close the cover."""
+        LOGGER.info('closing')
+        self.hass.async_create_task(self.async_cover_closed())
 
-    def open_cover(self, **kwargs):
-        self._client.up_command()
-        wait = ((100 - self._current_position) * self._close_time)/100
-        self._current_position = 100
-
-        self.async_write_ha_state()
-        LOGGER.info('Sleeping for {} to allow for open'.format(wait))
-        time.sleep(wait)
-        self._current_action = ACTION_STOPPED
-        self.async_write_ha_state()
+    async def async_open_cover(self, **kwargs):
         """Open the cover."""
 
-    def stop_cover(self, **kwargs):
-        self._client.stop_command()
+        await self.hass.async_add_executor_job(self._client.up_command)
+
+        self._pending_positioning_command = PositioningRequest(100, self._current_position)
+
+        self._current_position = 100
+        self._current_action = ACTION_OPENING
+        self.async_write_ha_state()
+
+        LOGGER.info('opening')
+        self.hass.async_create_task(self.async_cover_opened())
+
+    async def async_cover_closed(self):
+        await self._pending_positioning_command.wait_for_move_down(self)
+        self.cover_change_complete()
+
+    async def async_cover_opened(self):
+        await self._pending_positioning_command.wait_for_move_up(self)
+        self.cover_change_complete()
+
+    def cover_change_complete(self):
         self._current_action = ACTION_STOPPED
+        self._current_position = self._pending_positioning_command._target_position
+        LOGGER.info('move done {}'.format(self._current_position))
+        self._pending_positioning_command = None
+        self.async_write_ha_state()
+
+    def stop_cover(self, **kwargs):
+        LOGGER.info('stop')
+        self._client.stop_command()
+        if self._pending_positioning_command is not None:
+            self._pending_positioning_command.interrupt()
+        else:
+            self._current_action = ACTION_STOPPED
         """Stop the cover."""
         
     def open_cover_tilt(self, **kwargs):
