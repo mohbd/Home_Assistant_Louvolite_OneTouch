@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 
 import aiohttp
+import asyncio
 
 from .const import (
     CMD_UP,
@@ -29,24 +30,25 @@ class NeoCommandSender(object):
 
 class NeoTcpCommandSender(NeoCommandSender):
     
-    def send_command(self, command):
+    async def async_send_command(self, command):
         """Command sender for TCP"""
 
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(5)
-            mc = ""
-            if self._motor_code:
-                mc = "!{}".format(self._motor_code)
+        reader, writer = await asyncio.open_connection(self._host, self._port)
 
-            complete_command = self._device + "-" + command + mc + '\r\n'
-            _LOGGER.info("NeoSmartBlinds, Sending command: {}".format(complete_command))
-            s.connect((self._host, self._port))
-            while True:
-                s.send(complete_command.encode())
-        except socket.error:
-            LOGGER.exception(socket.error.strerror)
-            return
+        mc = ""
+        if self._motor_code:
+            mc = "!{}".format(self._motor_code)
+
+        complete_command = self._device + "-" + command + mc + '\r\n'
+        _LOGGER.info("Tx: {}".format(complete_command))
+        writer.write(complete_command.encode())
+
+        response = await reader.read()
+        _LOGGER.info("Rx: {}".format(response.decode()))
+
+        writer.close()
+        await writer.wait_closed()
+
 
 class NeoHttpCommandSender(NeoCommandSender):
     def __init__(self, host, the_id, device, port, motor_code):
@@ -84,7 +86,7 @@ class NeoSmartBlind:
         if protocol.lower() == "http":
             self._command_sender = NeoHttpCommandSender(host, the_id, device, port, motor_code)
 
-        elif str(self._protocol).lower() == "tcp":
+        elif protocol.lower() == "tcp":
             self._command_sender = NeoTcpCommandSender(host, the_id, device, port, motor_code)
 
         else:
