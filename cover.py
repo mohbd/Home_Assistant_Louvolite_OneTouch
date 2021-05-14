@@ -7,6 +7,7 @@ from homeassistant.components.cover import PLATFORM_SCHEMA
 from custom_components.neosmartblinds.neo_smart_blind import NeoSmartBlind
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
+import functools as ft
 
 from homeassistant.components.cover import (
     SUPPORT_CLOSE,
@@ -108,13 +109,14 @@ def compute_wait_time(larger, smaller, close_time):
     return ((larger - smaller) * close_time) / 100
 
 class PositioningRequest(object):
-    def __init__(self, target_position, starting_position):
+    def __init__(self, target_position, starting_position, needs_stop):
         self._target_position = target_position
         self._starting_position = starting_position
         self._interrupt = asyncio.Event()
         self._start = time.time()
         self._active_wait = None
         self._adjusted_wait = None
+        self._needs_stop = needs_stop
 
     async def async_wait(self, reason):
         elapsed = 0
@@ -292,7 +294,7 @@ class NeoSmartBlindsCover(CoverEntity):
         
     async def async_close_cover_to(self, target_position, move_command=None):
         self._stopped = asyncio.Event()
-        self._pending_positioning_command = PositioningRequest(target_position, self._current_position)
+        self._pending_positioning_command = PositioningRequest(target_position, self._current_position, target_position == 0 or move_command)
 
         self._current_position = target_position
         self._current_action = ACTION_CLOSING
@@ -309,7 +311,7 @@ class NeoSmartBlindsCover(CoverEntity):
 
     async def async_open_cover_to(self, target_position, move_command=None):
         self._stopped = asyncio.Event()
-        self._pending_positioning_command = PositioningRequest(target_position, self._current_position)
+        self._pending_positioning_command = PositioningRequest(target_position, self._current_position, target_position == 100 or move_command)
 
         self._current_position = target_position
         self._current_action = ACTION_OPENING
@@ -322,13 +324,13 @@ class NeoSmartBlindsCover(CoverEntity):
 
     async def async_cover_closed_to_position(self):
         if not await self._pending_positioning_command.async_wait_for_move_down(self):
-            if self._pending_positioning_command._target_position != 0:
+            if self._pending_positioning_command._needs_stop:
                 await self._client.async_stop_command()
         self.cover_change_complete()
 
     async def async_cover_opened_to_position(self):
         if not await self._pending_positioning_command.async_wait_for_move_up(self):
-            if self._pending_positioning_command._target_position != 100:
+            if self._pending_positioning_command._needs_stop:
                 await self._client.async_stop_command()
         self.cover_change_complete()
 
@@ -406,15 +408,27 @@ class NeoSmartBlindsCover(CoverEntity):
                     #STOP then issue new command
                     await self.async_stop_cover()
                     delta = pos - estimated_position
+                elif self._percent_support == EXPLICIT_POSITIONING:
+                    #just issue the new position, the wait is adjusted already
+                    await self._client.async_set_position_by_percent(pos)
                 #else: adjustment handled silently, leave delta at zero so no command is sent
             else:
                 delta = pos - self._current_position
 
             if delta > 0 or pos == 100:
-                if self._percent_support != EXPLICIT_POSITIONING or pos == 100:
+                if self._percent_support == IMPLICIT_POSITIONING or pos == 100:
                     await self.async_open_cover_to(pos)
+                elif self._percent_support == EXPLICIT_POSITIONING:
+                    await self.async_open_cover_to(
+                        pos, 
+                        ft.partial(self._client.async_set_position_by_percent, pos)
+                    )
 
             if delta < 0 or pos == 0:
-                if self._percent_support != EXPLICIT_POSITIONING or pos == 0:
+                if self._percent_support == IMPLICIT_POSITIONING or pos == 0:
                     await self.async_close_cover_to(pos)
-
+                elif self._percent_support == EXPLICIT_POSITIONING:
+                    await self.async_open_cover_to(
+                        pos, 
+                        ft.partial(self._client.async_set_position_by_percent, pos)
+                    )
