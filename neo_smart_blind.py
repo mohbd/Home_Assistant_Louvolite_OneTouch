@@ -14,7 +14,9 @@ from .const import (
     CMD_STOP,
     CMD_FAV,
     CMD_FAV_1,
-    CMD_FAV_2
+    CMD_FAV_2,
+    CMD_MICRO_UP,
+    CMD_MICRO_DOWN
 )
 
 _LOGGER = logging.getLogger(__name__)

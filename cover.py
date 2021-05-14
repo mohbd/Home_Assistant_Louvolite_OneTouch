@@ -352,11 +352,11 @@ class NeoSmartBlindsCover(CoverEntity):
             self._current_action = ACTION_STOPPED
         """Stop the cover."""
         
-    def open_cover_tilt(self, **kwargs):
+    async def async_open_cover_tilt(self, **kwargs):
         await self._client.async_open_cover_tilt()
         """Open the cover tilt."""
         
-    def close_cover_tilt(self, **kwargs):
+    async def async_close_cover_tilt(self, **kwargs):
         await self._client.async_close_cover_tilt()
         """Close the cover tilt."""
 
