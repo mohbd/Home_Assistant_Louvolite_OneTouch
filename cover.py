@@ -294,7 +294,7 @@ class NeoSmartBlindsCover(CoverEntity):
         
     async def async_close_cover_to(self, target_position, move_command=None):
         self._stopped = asyncio.Event()
-        self._pending_positioning_command = PositioningRequest(target_position, self._current_position, target_position == 0 or move_command)
+        self._pending_positioning_command = PositioningRequest(target_position, self._current_position, not (target_position == 0 or move_command))
 
         self._current_position = target_position
         self._current_action = ACTION_CLOSING
@@ -311,7 +311,7 @@ class NeoSmartBlindsCover(CoverEntity):
 
     async def async_open_cover_to(self, target_position, move_command=None):
         self._stopped = asyncio.Event()
-        self._pending_positioning_command = PositioningRequest(target_position, self._current_position, target_position == 100 or move_command)
+        self._pending_positioning_command = PositioningRequest(target_position, self._current_position, not (target_position == 100 or move_command))
 
         self._current_position = target_position
         self._current_action = ACTION_OPENING
