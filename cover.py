@@ -87,7 +87,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None, ):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up NeoSmartBlinds cover."""
     cover = NeoSmartBlindsCover(
         hass,
@@ -102,7 +102,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None, ):
         config.get(CONF_PERCENT_SUPPORT),
         config.get(CONF_MOTOR_CODE)
         )
-    add_entities([cover])
+    async_add_entities([cover])
 
 def compute_wait_time(larger, smaller, close_time):
     return ((larger - smaller) * close_time) / 100
@@ -295,7 +295,7 @@ class NeoSmartBlindsCover(CoverEntity):
         self._current_action = ACTION_CLOSING
         self.async_write_ha_state()
 
-        await self.hass.async_add_executor_job(self._client.down_command if move_command is None else move_command)
+        await self._client.async_down_command() if move_command is None else move_command()
 
         LOGGER.info('closing to {}'.format(target_position))
         self.hass.async_create_task(self.async_cover_closed_to_position())
@@ -312,7 +312,7 @@ class NeoSmartBlindsCover(CoverEntity):
         self._current_action = ACTION_OPENING
         self.async_write_ha_state()
 
-        await self.hass.async_add_executor_job(self._client.up_command if move_command is None else move_command)
+        await self._client.async_up_command() if move_command is None else move_command()
 
         LOGGER.info('opening to {}'.format(target_position))
         self.hass.async_create_task(self.async_cover_opened_to_position())
@@ -320,13 +320,13 @@ class NeoSmartBlindsCover(CoverEntity):
     async def async_cover_closed_to_position(self):
         if not await self._pending_positioning_command.async_wait_for_move_down(self):
             if self._pending_positioning_command._target_position != 0:
-                await self.hass.async_add_executor_job(self._client.stop_command)
+                await self._client.async_stop_command()
         self.cover_change_complete()
 
     async def async_cover_opened_to_position(self):
         if not await self._pending_positioning_command.async_wait_for_move_up(self):
             if self._pending_positioning_command._target_position != 100:
-                await self.hass.async_add_executor_job(self._client.stop_command)
+                await self._client.async_stop_command()
         self.cover_change_complete()
 
     def cover_change_complete(self):
@@ -340,7 +340,7 @@ class NeoSmartBlindsCover(CoverEntity):
 
     async def async_stop_cover(self, **kwargs):
         LOGGER.info('stop')
-        await self.hass.async_add_executor_job(self._client.stop_command)
+        await self._client.async_stop_command()
         if self._pending_positioning_command is not None:
             self._pending_positioning_command.interrupt()
             await self._stopped.wait()

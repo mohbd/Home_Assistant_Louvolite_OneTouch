@@ -3,7 +3,7 @@ import socket
 import time
 from datetime import datetime
 
-import requests
+import aiohttp
 
 from .const import (
     CMD_UP,
@@ -43,7 +43,7 @@ class NeoTcpCommandSender(NeoCommandSender):
                 mc = "!{}".format(self._motor_code)
 
             complete_command = self._device + "-" + command + mc + '\r\n'
-            LOGGER.info("NeoSmartBlinds, Sending command: {}".format(complete_command))
+            _LOGGER.info("NeoSmartBlinds, Sending command: {}".format(complete_command))
             s.connect((self._host, self._port))
             while True:
                 s.send(complete_command.encode())
@@ -52,7 +52,12 @@ class NeoTcpCommandSender(NeoCommandSender):
             return
 
 class NeoHttpCommandSender(NeoCommandSender):
-    def send_command(self, command):
+    def __init__(self, host, the_id, device, port, motor_code):
+        #TODO: share across all senders
+        self._session = aiohttp.ClientSession()
+        super().__init__(host, the_id, device, port, motor_code)
+
+    async def async_send_command(self, command):
         """Command sender for HTTP"""
         url = "http://{}:{}/neo/v1/transmit".format(self._host, self._port)
 
@@ -65,14 +70,13 @@ class NeoHttpCommandSender(NeoCommandSender):
 
         params = {'id': self._the_id, 'command': self._device + "-" + command + mc, 'hash': hash_string}
 
-        r = requests.get(url=url, params=params)
+        async with self._session.get(url=url, params=params) as r:
+            _LOGGER.info("Tx: {}".format(r.url))
+            if r.status == 200:
+                _LOGGER.info("Rx: {} - {}".format(r.status, await r.text()))
+            else:
+                _LOGGER.error("Rx: {} - {}".format(r.status, await r.text()))
 
-        LOGGER.info("Sent: {}".format(r.url))
-        LOGGER.info("Neo Hub Responded with - {}".format(r.text))
-
-        """Check for error code and log"""
-        if r.status_code != 200:
-            LOGGER.error("Status Code - {}".format(r.status_code))
 
 class NeoSmartBlind:
     def __init__(self, host, the_id, device, port, protocol, rail, motor_code):
@@ -97,12 +101,12 @@ class NeoSmartBlind:
         """NeoBlinds works off of percent closed, but HA works off of percent open, so need to invert the percentage"""
         closed_pos = 100 - pos
         padded_position = f'{closed_pos:02}'
-        LOGGER.info('Sending ' + padded_position)
+        _LOGGER.info('Sending ' + padded_position)
         self._command_sender.send_command(padded_position)
         return
 
-    def stop_command(self):
-        self._command_sender.send_command(CMD_STOP)
+    async def async_stop_command(self):
+        await self._command_sender.async_send_command(CMD_STOP)
 
     def open_cover_tilt(self, **kwargs):
         if self._rail == 1:
@@ -119,20 +123,18 @@ class NeoSmartBlind:
         """Close the cover tilt."""
 
     """Send down command with rail support"""
-    def down_command(self):
+    async def async_down_command(self):
         if self._rail == 1:
-            self._command_sender.send_command(CMD_DOWN)
+            await self._command_sender.async_send_command(CMD_DOWN)
         elif self._rail == 2:
-            self._command_sender.send_command(CMD_DOWN2)
-        return
+            await self._command_sender.async_send_command(CMD_DOWN2)
 
     """Send up command with rail support"""
-    def up_command(self):
+    async def async_up_command(self):
         if self._rail == 1:
-            self._command_sender.send_command(CMD_UP)
+            await self._command_sender.async_send_command(CMD_UP)
         elif self._rail == 2:
-            self._command_sender.send_command(CMD_UP2)
-        return
+            await self._command_sender.async_send_command(CMD_UP2)
 
     def set_fav_position(self, pos):
         LOGGER.info('Setting fav: ' + str(pos))
