@@ -173,7 +173,7 @@ class PositioningRequest(object):
     def estimate_current_position(self):
         if not self._active_wait:
             return self._starting_position
-
+            
         elapsed = time.time() - self._start
         if self.is_moving_up():
             return int(
@@ -243,7 +243,7 @@ class NeoSmartBlindsCover(CoverEntity):
     @property
     def unique_id(self):
         """Return a unique id for the entity"""
-        return DATA_NEOSMARTBLINDS + "." + self._client.unique_id()
+        return self._client.unique_id(DATA_NEOSMARTBLINDS)
 
     @property
     def should_poll(self):

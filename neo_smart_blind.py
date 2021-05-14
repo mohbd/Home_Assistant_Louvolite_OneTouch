@@ -27,9 +27,6 @@ class NeoCommandSender(object):
         self._device = device
         self._motor_code = motor_code
 
-    def unique_id(self):
-        return self._device
-
 class NeoTcpCommandSender(NeoCommandSender):
     
     def send_command(self, command):
@@ -94,8 +91,8 @@ class NeoSmartBlind:
             LOGGER.error("NeoSmartBlinds, Unknown protocol: {}, please use: http or tcp".format(protocol))
 
 
-    def unique_id(self):
-        return self._command_sender.unique_id()
+    def unique_id(self, prefix):
+        return "{}.{}.{}.{}".format(prefix, self._command_sender._device, self._command_sender._motor_code, self._rail)
 
     def set_position_by_percent(self, pos):
         """NeoBlinds works off of percent closed, but HA works off of percent open, so need to invert the percentage"""
