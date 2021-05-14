@@ -98,13 +98,11 @@ class NeoSmartBlind:
     def unique_id(self, prefix):
         return "{}.{}.{}.{}".format(prefix, self._command_sender._device, self._command_sender._motor_code, self._rail)
 
-    def set_position_by_percent(self, pos):
+    async def async_set_position_by_percent(self, pos):
         """NeoBlinds works off of percent closed, but HA works off of percent open, so need to invert the percentage"""
         closed_pos = 100 - pos
         padded_position = f'{closed_pos:02}'
-        _LOGGER.info('Sending ' + padded_position)
-        self._command_sender.send_command(padded_position)
-        return
+        await self._command_sender.async_send_command(padded_position)
 
     async def async_stop_command(self):
         await self._command_sender.async_send_command(CMD_STOP)
