@@ -171,6 +171,9 @@ class PositioningRequest(object):
         return self._target_position > self._starting_position
 
     def estimate_current_position(self):
+        if not self._active_wait:
+            return self._starting_position
+
         elapsed = time.time() - self._start
         if self.is_moving_up():
             return int(
@@ -293,12 +296,12 @@ class NeoSmartBlindsCover(CoverEntity):
 
         self._current_position = target_position
         self._current_action = ACTION_CLOSING
-        self.async_write_ha_state()
 
         await self._client.async_down_command() if move_command is None else move_command()
 
         LOGGER.info('closing to {}'.format(target_position))
         self.hass.async_create_task(self.async_cover_closed_to_position())
+        self.async_write_ha_state()
 
     async def async_open_cover(self, **kwargs):
         """Open the cover."""
@@ -310,12 +313,12 @@ class NeoSmartBlindsCover(CoverEntity):
 
         self._current_position = target_position
         self._current_action = ACTION_OPENING
-        self.async_write_ha_state()
 
         await self._client.async_up_command() if move_command is None else move_command()
 
         LOGGER.info('opening to {}'.format(target_position))
         self.hass.async_create_task(self.async_cover_opened_to_position())
+        self.async_write_ha_state()
 
     async def async_cover_closed_to_position(self):
         if not await self._pending_positioning_command.async_wait_for_move_down(self):
