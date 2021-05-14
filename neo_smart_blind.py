@@ -90,7 +90,7 @@ class NeoSmartBlind:
             self._command_sender = NeoTcpCommandSender(host, the_id, device, port, motor_code)
 
         else:
-            LOGGER.error("NeoSmartBlinds, Unknown protocol: {}, please use: http or tcp".format(protocol))
+            LOGGER.error("Unknown protocol: {}, please use: http or tcp".format(protocol))
 
 
     def unique_id(self, prefix):
@@ -107,18 +107,18 @@ class NeoSmartBlind:
     async def async_stop_command(self):
         await self._command_sender.async_send_command(CMD_STOP)
 
-    def open_cover_tilt(self, **kwargs):
+    async def async_open_cover_tilt(self, **kwargs):
         if self._rail == 1:
-            self._command_sender.send_command(CMD_MICRO_UP)
+            await self._command_sender.async_send_command(CMD_MICRO_UP)
         elif self._rail == 2:
-            self._command_sender.send_command(CMD_MICRO_UP2)
+            await self._command_sender.async_send_command(CMD_MICRO_UP2)
         """Open the cover tilt."""
         
-    def close_cover_tilt(self, **kwargs):
+    async def async_close_cover_tilt(self, **kwargs):
         if self._rail == 1:
-            self._command_sender.send_command(CMD_MICRO_DOWN)
+            await self._command_sender.async_send_command(CMD_MICRO_DOWN)
         elif self._rail == 2:
-            self._command_sender.send_command(CMD_MICRO_DOWN2)
+            await self._command_sender.async_send_command(CMD_MICRO_DOWN2)
         """Close the cover tilt."""
 
     """Send down command with rail support"""
@@ -135,15 +135,13 @@ class NeoSmartBlind:
         elif self._rail == 2:
             await self._command_sender.async_send_command(CMD_UP2)
 
-    def set_fav_position(self, pos):
-        LOGGER.info('Setting fav: ' + str(pos))
+    async def async_set_fav_position(self, pos):
         if pos <= 50:
-            self._command_sender.send_command(CMD_FAV)
+            await self._command_sender.async_send_command(CMD_FAV)
             return 50
         if pos >= 51:
-            self._command_sender.send_command(CMD_FAV_2)
+            await self._command_sender.async_send_command(CMD_FAV_2)
             return 51
-        return
 
 
 

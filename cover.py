@@ -353,67 +353,68 @@ class NeoSmartBlindsCover(CoverEntity):
         """Stop the cover."""
         
     def open_cover_tilt(self, **kwargs):
-        self._client.open_cover_tilt()
+        await self._client.async_open_cover_tilt()
         """Open the cover tilt."""
         
     def close_cover_tilt(self, **kwargs):
-        self._client.close_cover_tilt()
+        await self._client.async_close_cover_tilt()
         """Close the cover tilt."""
 
     async def async_set_cover_position(self, **kwargs):
         """Move the cover to a specific position."""
         await self.async_adjust_blind(kwargs['position'])
 
-    def set_cover_tilt_position(self, **kwargs):
-        self._current_position = self._client.set_fav_position(kwargs['tilt_position'])
+    async def async_set_cover_tilt_position(self, **kwargs):
+        # Position doesn't resemble reality so the state is likely to get out of step
+        self._current_position = await self._client.async_set_fav_position(kwargs['tilt_position'])
         self.async_write_ha_state()
 
     """Adjust the blind based on the pos value send"""
     async def async_adjust_blind(self, pos):
 
         """Legacy support for using position to set favorites"""
-        # if self._percent_support == LEGACY_POSITIONING:
-        #     if pos == 50 or pos == 51:
-        #         self._client.set_fav_position(pos)
-        #     return
-
-        """Always allow full open / close commands to get through"""
-
-        if pos > 98:
-            """
-            Unable to send 100 to the API so assume anything greater then 98 is just an open command.
-            Use the same logic irrespective of mode for consistency.            
-            """
-            pos = 100
-        if pos < 2:
-            """Assume anything greater less than 2 is just a close command"""
-            pos = 0
-
-        """Check for any change in position, only act if it has changed"""
-        delta = 0
-
-        """
-        Work out whether the blind is already moving.
-        If yes, work out whether it is moving in the right direction.
-            If yes, just adjust the pending timeout.
-            If no, cancel the existing timer and issue a fresh positioning command
-        if not, issue a positioning command
-        """
-        if self._pending_positioning_command is not None:
-            estimated_position = self._pending_positioning_command.adjust(pos, self)
-            if estimated_position is not None:
-                #STOP then issue new command
-                await self.async_stop_cover()
-                delta = pos - estimated_position
-            #else: adjustment handled silently, leave delta at zero so no command is sent
+        if self._percent_support == LEGACY_POSITIONING:
+            if pos == 50 or pos == 51:
+                self._current_position = await self._client.async_set_fav_position(pos)
+                self.async_write_ha_state()
         else:
-            delta = pos - self._current_position
+            """Always allow full open / close commands to get through"""
 
-        if delta > 0 or pos == 100:
-            if self._percent_support != EXPLICIT_POSITIONING or pos == 100:
-                await self.async_open_cover_to(pos)
+            if pos > 98:
+                """
+                Unable to send 100 to the API so assume anything greater then 98 is just an open command.
+                Use the same logic irrespective of mode for consistency.            
+                """
+                pos = 100
+            if pos < 2:
+                """Assume anything greater less than 2 is just a close command"""
+                pos = 0
 
-        if delta < 0 or pos == 0:
-            if self._percent_support != EXPLICIT_POSITIONING or pos == 0:
-                await self.async_close_cover_to(pos)
+            """Check for any change in position, only act if it has changed"""
+            delta = 0
+
+            """
+            Work out whether the blind is already moving.
+            If yes, work out whether it is moving in the right direction.
+                If yes, just adjust the pending timeout.
+                If no, cancel the existing timer and issue a fresh positioning command
+            if not, issue a positioning command
+            """
+            if self._pending_positioning_command is not None:
+                estimated_position = self._pending_positioning_command.adjust(pos, self)
+                if estimated_position is not None:
+                    #STOP then issue new command
+                    await self.async_stop_cover()
+                    delta = pos - estimated_position
+                #else: adjustment handled silently, leave delta at zero so no command is sent
+            else:
+                delta = pos - self._current_position
+
+            if delta > 0 or pos == 100:
+                if self._percent_support != EXPLICIT_POSITIONING or pos == 100:
+                    await self.async_open_cover_to(pos)
+
+            if delta < 0 or pos == 0:
+                if self._percent_support != EXPLICIT_POSITIONING or pos == 0:
+                    await self.async_close_cover_to(pos)
 
