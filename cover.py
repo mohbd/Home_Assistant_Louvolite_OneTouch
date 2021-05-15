@@ -133,7 +133,7 @@ class PositioningRequest(object):
         # Indicates whether the pending positioning attempt requires the entity to call stop once complete
         self._needs_stop = needs_stop
 
-    async def async_wait(self, reason):
+    async def async_wait(self, reason, cover):
         """
         Wait on the positioning request to complete.
 
@@ -141,7 +141,7 @@ class PositioningRequest(object):
         """
         elapsed = 0
         while True:
-            LOGGER.info('Sleeping for {} to allow for {} to {}, elapsed={}'.format(self._active_wait, reason, self._target_position, elapsed))
+            LOGGER.info('{} sleeping for {} to allow for {} to {}, elapsed={}'.format(cover._name, self._active_wait, reason, self._target_position, elapsed))
             await asyncio.wait_for(
                 asyncio.create_task(self._interrupt.wait()), self._active_wait - elapsed
                 )
@@ -165,7 +165,7 @@ class PositioningRequest(object):
 
         self._active_wait = compute_wait_time(self._target_position, self._starting_position, cover._close_time)
         try:
-            elapsed = await self.async_wait('open')
+            elapsed = await self.async_wait('open', cover)
             if elapsed < self._active_wait:
                 self._target_position = int(
                     self._starting_position + (self._target_position - self._starting_position) * elapsed / self._active_wait
@@ -187,7 +187,7 @@ class PositioningRequest(object):
 
         self._active_wait = compute_wait_time(self._starting_position, self._target_position, cover._close_time)
         try:
-            elapsed = await self.async_wait('close')
+            elapsed = await self.async_wait('close', cover)
             if elapsed < self._active_wait:
                 self._target_position = int(
                     self._starting_position - (self._starting_position - self._target_position) * elapsed / self._active_wait
@@ -241,7 +241,7 @@ class PositioningRequest(object):
                 self._adjusted_wait = compute_wait_time(self._starting_position, target_position, cover._close_time)
                 self.interrupt()
                 return
-        LOGGER.info('Estimated position is {}, force direction change'.format(cur))
+        LOGGER.info('{} estimated position is {}, force direction change'.format(cover._name, cur))
         return cur
 
     def interrupt(self):
@@ -258,7 +258,6 @@ class NeoSmartBlindsCover(CoverEntity):
     def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port, rail, percent_support, motor_code):
         """Initialize the cover."""
         self.home_assistant = home_assistant
-
         self._name = name
         # This isn't ideal but there is no feedback from the blind / hub about position.
         self._current_position = 50
@@ -282,13 +281,13 @@ class NeoSmartBlindsCover(CoverEntity):
             return self.home_assistant.data[DATA_NEOSMARTBLINDS]
 
         self._client = NeoSmartBlind(host,
-                                     the_id,
-                                     device,
-                                     port,
-                                     protocol,
-                                     rail,
-                                     motor_code,
-                                     http_session_factory)
+                                    the_id,
+                                    device,    
+                                    port,
+                                    protocol,
+                                    rail,
+                                    motor_code,
+                                    http_session_factory)
 
 
     @property
@@ -362,7 +361,7 @@ class NeoSmartBlindsCover(CoverEntity):
 
         # Issue the move command
         if await self._client.async_down_command() if move_command is None else move_command():
-            LOGGER.info('closing to {}'.format(target_position))
+            LOGGER.info('{} closing to {}'.format(self._name, target_position))
             # Put the positioning request on the ha queue to run in parallel but don't await it here (we want to continue)
             self.hass.async_create_task(self.async_cover_closed_to_position())
             # Finally, update the state to reflect that the command is in flight
@@ -392,7 +391,7 @@ class NeoSmartBlindsCover(CoverEntity):
 
         # Issue the move command
         if await self._client.async_up_command() if move_command is None else move_command():
-            LOGGER.info('opening to {}'.format(target_position))
+            LOGGER.info('{} opening to {}'.format(self._name, target_position))
             # Put the positioning request on the ha queue to run in parallel but don't await it here (we want to continue)
             self.hass.async_create_task(self.async_cover_opened_to_position())
             # Finally, update the state to reflect that the command is in flight
@@ -433,7 +432,7 @@ class NeoSmartBlindsCover(CoverEntity):
             self._current_action = ACTION_STOPPED
             if result:
                 self._current_position = self._pending_positioning_command._target_position
-                LOGGER.info('move done {}'.format(self._current_position))
+                LOGGER.info('{} move done {}'.format(self._name, self._current_position))
             else:
                 self._current_position = self._pending_positioning_command._starting_position
             self._pending_positioning_command = None
@@ -444,7 +443,7 @@ class NeoSmartBlindsCover(CoverEntity):
 
     async def async_stop_cover(self, **kwargs):
         """Stop the cover."""
-        LOGGER.info('stop')
+        LOGGER.info('{} stop'.format(self._name))
         await self._client.async_stop_command()
         if self._pending_positioning_command is not None:
             # Interrupt any pending positioning requests

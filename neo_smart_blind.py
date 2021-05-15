@@ -39,11 +39,11 @@ class NeoCommandSender(object):
         """
         if result is None:
             if not self._was_connected:
-                _LOGGER.info('Connected to hub')
+                _LOGGER.info('{}, connected to hub'.format(self._device))
                 self._was_connected = True
         else:
             if self._was_connected or self._was_connected is None:
-                _LOGGER.warning('Disconnected from hub: {}'.format(result))
+                _LOGGER.warning('{}, disconnected from hub: {}'.format(self._device, result))
                 self._was_connected = False
         
         return self._was_connected
@@ -65,11 +65,11 @@ class NeoTcpCommandSender(NeoCommandSender):
                 mc = "!{}".format(self._motor_code)
 
             complete_command = self._device + "-" + command + mc + '\r\n'
-            _LOGGER.debug("Tx: {}".format(complete_command))
+            _LOGGER.debug("{}, Tx: {}".format(self._device, complete_command))
             writer.write(complete_command.encode())
 
             response = await reader.read()
-            _LOGGER.debug("Rx: {}".format(response.decode()))
+            _LOGGER.debug("{}, Rx: {}".format(self._device, response.decode()))
 
             writer.close()
             await writer.wait_closed()
@@ -101,8 +101,8 @@ class NeoHttpCommandSender(NeoCommandSender):
 
         try:
             async with self._session.get(url=url, params=params, raise_for_status=True) as r:
-                _LOGGER.debug("Tx: {}".format(r.url))
-                _LOGGER.debug("Rx: {} - {}".format(r.status, await r.text()))
+                _LOGGER.debug("{}, Tx: {}".format(self._device, r.url))
+                _LOGGER.debug("{}, Rx: {} - {}".format(self._device, r.status, await r.text()))
                 return self.on_io_complete()
         except Exception as e:
             return self.on_io_complete(e)
@@ -121,8 +121,7 @@ class NeoSmartBlind:
             self._command_sender = NeoTcpCommandSender(host, the_id, device, port, motor_code)
 
         else:
-            LOGGER.error("Unknown protocol: {}, please use: http or tcp".format(protocol))
-
+            LOGGER.error("{}, unknown protocol: {}, please use: http or tcp".format(self._device, protocol))
 
     def unique_id(self, prefix):
         return "{}.{}.{}.{}".format(prefix, self._command_sender._device, self._command_sender._motor_code, self._rail)
