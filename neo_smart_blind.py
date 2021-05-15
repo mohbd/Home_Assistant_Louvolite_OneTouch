@@ -16,7 +16,8 @@ from .const import (
     CMD_FAV_1,
     CMD_FAV_2,
     CMD_MICRO_UP,
-    CMD_MICRO_DOWN
+    CMD_MICRO_DOWN,
+    DEFAULT_IO_TIMEOUT
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,33 +30,60 @@ class NeoCommandSender(object):
         self._the_id = the_id
         self._device = device
         self._motor_code = motor_code
+        self._was_connected = None
+
+    def on_io_complete(self, result=None):
+        """
+        Helper function to trap connection status and log it on change only.
+        result is either None (success) or an exception (fail)
+        """
+        if result is None:
+            if not self._was_connected:
+                _LOGGER.info('Connected to hub')
+                self._was_connected = True
+        else:
+            if self._was_connected or self._was_connected is None:
+                _LOGGER.warning('Disconnected from hub: {}'.format(result))
+                self._was_connected = False
+        
+        return self._was_connected
+
 
 class NeoTcpCommandSender(NeoCommandSender):
     
     async def async_send_command(self, command):
         """Command sender for TCP"""
 
-        reader, writer = await asyncio.open_connection(self._host, self._port)
+        async def async_sender():
+            """
+            Wrap all the IO in an awaitable closure so a timeout can be put on it in the outer function
+            """
+            reader, writer = await asyncio.open_connection(self._host, self._port)
 
-        mc = ""
-        if self._motor_code:
-            mc = "!{}".format(self._motor_code)
+            mc = ""
+            if self._motor_code:
+                mc = "!{}".format(self._motor_code)
 
-        complete_command = self._device + "-" + command + mc + '\r\n'
-        _LOGGER.info("Tx: {}".format(complete_command))
-        writer.write(complete_command.encode())
+            complete_command = self._device + "-" + command + mc + '\r\n'
+            _LOGGER.debug("Tx: {}".format(complete_command))
+            writer.write(complete_command.encode())
 
-        response = await reader.read()
-        _LOGGER.info("Rx: {}".format(response.decode()))
+            response = await reader.read()
+            _LOGGER.debug("Rx: {}".format(response.decode()))
 
-        writer.close()
-        await writer.wait_closed()
+            writer.close()
+            await writer.wait_closed()
+
+        try:
+            await asyncio.wait_for(async_sender(), timeout=DEFAULT_IO_TIMEOUT)
+            return self.on_io_complete()
+        except Exception as e:
+            return self.on_io_complete(e)
 
 
 class NeoHttpCommandSender(NeoCommandSender):
     def __init__(self, http_session_factory, host, the_id, device, port, motor_code):
-        #TODO: share across all senders
-        self._session = http_session_factory()
+        self._session = http_session_factory(DEFAULT_IO_TIMEOUT)
         super().__init__(host, the_id, device, port, motor_code)
 
     async def async_send_command(self, command):
@@ -71,13 +99,14 @@ class NeoHttpCommandSender(NeoCommandSender):
 
         params = {'id': self._the_id, 'command': self._device + "-" + command + mc, 'hash': hash_string}
 
-        async with self._session.get(url=url, params=params) as r:
-            _LOGGER.info("Tx: {}".format(r.url))
-            if r.status == 200:
-                _LOGGER.info("Rx: {} - {}".format(r.status, await r.text()))
-            else:
-                _LOGGER.error("Rx: {} - {}".format(r.status, await r.text()))
-
+        try:
+            async with self._session.get(url=url, params=params, raise_for_status=True) as r:
+                _LOGGER.debug("Tx: {}".format(r.url))
+                _LOGGER.debug("Rx: {} - {}".format(r.status, await r.text()))
+                return self.on_io_complete()
+        except Exception as e:
+            return self.on_io_complete(e)
+        
 
 class NeoSmartBlind:
     def __init__(self, host, the_id, device, port, protocol, rail, motor_code, http_session_factory):
@@ -102,46 +131,51 @@ class NeoSmartBlind:
         """NeoBlinds works off of percent closed, but HA works off of percent open, so need to invert the percentage"""
         closed_pos = 100 - pos
         padded_position = f'{closed_pos:02}'
-        await self._command_sender.async_send_command(padded_position)
+        return await self._command_sender.async_send_command(padded_position)
 
     async def async_stop_command(self):
-        await self._command_sender.async_send_command(CMD_STOP)
+        return await self._command_sender.async_send_command(CMD_STOP)
 
     async def async_open_cover_tilt(self, **kwargs):
         if self._rail == 1:
-            await self._command_sender.async_send_command(CMD_MICRO_UP)
+            return await self._command_sender.async_send_command(CMD_MICRO_UP)
         elif self._rail == 2:
-            await self._command_sender.async_send_command(CMD_MICRO_UP2)
+            return await self._command_sender.async_send_command(CMD_MICRO_UP2)
         """Open the cover tilt."""
+        return False
         
     async def async_close_cover_tilt(self, **kwargs):
         if self._rail == 1:
-            await self._command_sender.async_send_command(CMD_MICRO_DOWN)
+            return await self._command_sender.async_send_command(CMD_MICRO_DOWN)
         elif self._rail == 2:
-            await self._command_sender.async_send_command(CMD_MICRO_DOWN2)
+            return await self._command_sender.async_send_command(CMD_MICRO_DOWN2)
         """Close the cover tilt."""
+        return False
 
     """Send down command with rail support"""
     async def async_down_command(self):
         if self._rail == 1:
-            await self._command_sender.async_send_command(CMD_DOWN)
+            return await self._command_sender.async_send_command(CMD_DOWN)
         elif self._rail == 2:
-            await self._command_sender.async_send_command(CMD_DOWN2)
+            return await self._command_sender.async_send_command(CMD_DOWN2)
+        return False
 
     """Send up command with rail support"""
     async def async_up_command(self):
         if self._rail == 1:
-            await self._command_sender.async_send_command(CMD_UP)
+            return await self._command_sender.async_send_command(CMD_UP)
         elif self._rail == 2:
-            await self._command_sender.async_send_command(CMD_UP2)
+            return await self._command_sender.async_send_command(CMD_UP2)
+        return False
 
     async def async_set_fav_position(self, pos):
         if pos <= 50:
-            await self._command_sender.async_send_command(CMD_FAV)
-            return 50
+            if await self._command_sender.async_send_command(CMD_FAV):
+                return 50
         if pos >= 51:
-            await self._command_sender.async_send_command(CMD_FAV_2)
-            return 51
+            if await self._command_sender.async_send_command(CMD_FAV_2):
+                return 51
+        return False
 
 
 
