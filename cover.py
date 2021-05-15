@@ -1,5 +1,6 @@
 """Support for NeoSmartBlinds covers."""
 import asyncio
+import aiohttp
 import logging
 import time
 
@@ -216,9 +217,6 @@ class NeoSmartBlindsCover(CoverEntity):
         """Initialize the cover."""
         self.home_assistant = home_assistant
 
-        if DATA_NEOSMARTBLINDS not in self.home_assistant.data:
-            self.home_assistant.data[DATA_NEOSMARTBLINDS] = []
-
         self._name = name
         self._current_position = 50
         self._percent_support = percent_support
@@ -226,6 +224,12 @@ class NeoSmartBlindsCover(CoverEntity):
         self._current_action = ACTION_STOPPED
         self._pending_positioning_command = None
         self._stopped = None
+        
+        def http_session_factory():
+            if DATA_NEOSMARTBLINDS not in self.home_assistant.data:
+                self.home_assistant.data[DATA_NEOSMARTBLINDS] = aiohttp.ClientSession()
+
+            return self.home_assistant.data[DATA_NEOSMARTBLINDS]
 
         self._client = NeoSmartBlind(host,
                                      the_id,
@@ -233,9 +237,9 @@ class NeoSmartBlindsCover(CoverEntity):
                                      port,
                                      protocol,
                                      rail,
-                                     motor_code)
+                                     motor_code,
+                                     http_session_factory)
 
-        self.home_assistant.data[DATA_NEOSMARTBLINDS].append(self._client)
 
     @property
     def name(self):

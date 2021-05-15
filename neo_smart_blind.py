@@ -53,9 +53,9 @@ class NeoTcpCommandSender(NeoCommandSender):
 
 
 class NeoHttpCommandSender(NeoCommandSender):
-    def __init__(self, host, the_id, device, port, motor_code):
+    def __init__(self, http_session_factory, host, the_id, device, port, motor_code):
         #TODO: share across all senders
-        self._session = aiohttp.ClientSession()
+        self._session = http_session_factory()
         super().__init__(host, the_id, device, port, motor_code)
 
     async def async_send_command(self, command):
@@ -80,13 +80,13 @@ class NeoHttpCommandSender(NeoCommandSender):
 
 
 class NeoSmartBlind:
-    def __init__(self, host, the_id, device, port, protocol, rail, motor_code):
+    def __init__(self, host, the_id, device, port, protocol, rail, motor_code, http_session_factory):
         self._rail = rail
         """Command handler to send based on correct protocol"""
         self._command_sender = None
 
         if protocol.lower() == "http":
-            self._command_sender = NeoHttpCommandSender(host, the_id, device, port, motor_code)
+            self._command_sender = NeoHttpCommandSender(http_session_factory, host, the_id, device, port, motor_code)
 
         elif protocol.lower() == "tcp":
             self._command_sender = NeoTcpCommandSender(host, the_id, device, port, motor_code)
