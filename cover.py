@@ -9,6 +9,8 @@ from custom_components.neosmartblinds.neo_smart_blind import NeoSmartBlind
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 import functools as ft
+from homeassistant.helpers.restore_state import RestoreEntity
+
 
 from homeassistant.components.cover import (
     SUPPORT_CLOSE,
@@ -19,6 +21,7 @@ from homeassistant.components.cover import (
     SUPPORT_CLOSE_TILT,
     SUPPORT_SET_TILT_POSITION,
     CoverEntity,
+    ATTR_CURRENT_POSITION
 )
 
 PARALLEL_UPDATES = 0
@@ -37,6 +40,7 @@ from .const import (
     CONF_RAIL,
     CONF_PERCENT_SUPPORT,
     CONF_MOTOR_CODE,
+    CONF_START_POSITION,
     DATA_NEOSMARTBLINDS,
     CMD_UP,
     CMD_DOWN,
@@ -85,6 +89,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_RAIL, description="rail to move", default=1): cv.positive_int,
         vol.Required(CONF_PERCENT_SUPPORT, description="0=favourite positioning only, 1=send percent positioning commands to hub, 2=use up / down commands to estimate position", default=0): cv.positive_int,
         vol.Required(CONF_MOTOR_CODE, description="ID Code of motor in app", default=''): cv.string,
+        vol.Optional(CONF_START_POSITION, description="If percent positioning mode is enabled, this value will be used as the starting position else it will be restored from the last run"): cv.positive_int,
     }
 )
 
@@ -102,7 +107,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         config.get(CONF_PORT),
         config.get(CONF_RAIL),
         config.get(CONF_PERCENT_SUPPORT),
-        config.get(CONF_MOTOR_CODE)
+        config.get(CONF_MOTOR_CODE),
+        config.get(CONF_START_POSITION)
         )
     async_add_entities([cover])
 
@@ -252,16 +258,19 @@ class PositioningRequest(object):
 
 
 
-class NeoSmartBlindsCover(CoverEntity):
+class NeoSmartBlindsCover(CoverEntity, RestoreEntity):
     """Representation of a NeoSmartBlinds cover."""
 
-    def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port, rail, percent_support, motor_code):
+    def __init__(self, home_assistant, name, host, the_id, device, close_time, protocol, port, rail, percent_support, motor_code, starting_position):
         """Initialize the cover."""
         self.home_assistant = home_assistant
         self._name = name
         # This isn't ideal but there is no feedback from the blind / hub about position.
-        self._current_position = 50
         self._percent_support = percent_support
+        if self._percent_support > 0:
+            self._current_position = starting_position
+        else:
+            self._current_position = 50
         self._close_time = int(close_time)
         # Used to advertise state to ha
         self._current_action = ACTION_STOPPED
@@ -339,6 +348,16 @@ class NeoSmartBlindsCover(CoverEntity):
     def current_cover_tilt_position(self):
         """Return current position of cover tilt."""
         return 50
+
+    async def async_added_to_hass(self):
+        """Complete the initialization."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if self._current_position is None:
+            if last_state is not None and ATTR_CURRENT_POSITION in last_state.attributes:
+                self._current_position = last_state.attributes[ATTR_CURRENT_POSITION]
+            else:
+                self._current_position = 50
 
     async def async_close_cover(self, **kwargs):
         """Fully close the cover."""

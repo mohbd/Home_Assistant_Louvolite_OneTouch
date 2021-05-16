@@ -8,6 +8,7 @@ CONF_PORT = "port"
 CONF_RAIL = "rail"
 CONF_PERCENT_SUPPORT = "percent_support"
 CONF_MOTOR_CODE = "motor_code"
+CONF_START_POSITION = "start_position"
 
 LEGACY_POSITIONING = 0
 EXPLICIT_POSITIONING = 1
