@@ -111,6 +111,10 @@ class NeoHttpCommandSender(NeoCommandSender):
 class NeoSmartBlind:
     def __init__(self, host, the_id, device, port, protocol, rail, motor_code, http_session_factory):
         self._rail = rail
+
+        if self._rail < 1 or self._rail > 2:
+            _LOGGER.error("{}, unknown rail: {}, please use: 1 or 2".format(device, rail))
+
         """Command handler to send based on correct protocol"""
         self._command_sender = None
 
@@ -121,7 +125,7 @@ class NeoSmartBlind:
             self._command_sender = NeoTcpCommandSender(host, the_id, device, port, motor_code)
 
         else:
-            LOGGER.error("{}, unknown protocol: {}, please use: http or tcp".format(self._device, protocol))
+            _LOGGER.error("{}, unknown protocol: {}, please use: http or tcp".format(device, protocol))
 
     def unique_id(self, prefix):
         return "{}.{}.{}.{}".format(prefix, self._command_sender._device, self._command_sender._motor_code, self._rail)
