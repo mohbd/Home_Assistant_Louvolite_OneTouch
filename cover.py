@@ -342,6 +342,11 @@ class NeoSmartBlindsCover(CoverEntity):
 
     async def async_close_cover(self, **kwargs):
         """Fully close the cover."""
+        # Be pessimistic and ensure that a command is always issued. To do this, ensure
+        # any pending request is stopped first
+        if self._pending_positioning_command is not None:
+            await self.async_stop_cover()
+            
         await self.async_close_cover_to(0)
         
     async def async_close_cover_to(self, target_position, move_command=None):
@@ -372,6 +377,11 @@ class NeoSmartBlindsCover(CoverEntity):
 
     async def async_open_cover(self, **kwargs):
         """Fully open the cover."""
+        # Be pessimistic and ensure that a command is always issued. To do this, ensure
+        # any pending request is stopped first
+        if self._pending_positioning_command is not None:
+            await self.async_stop_cover()
+
         await self.async_open_cover_to(100)
 
     async def async_open_cover_to(self, target_position, move_command=None):
@@ -525,7 +535,7 @@ class NeoSmartBlindsCover(CoverEntity):
                 # New command, nothing in-flight -- compute the delta
                 delta = pos - self._current_position
 
-            if delta > 0 or pos == 100:
+            if delta > 0:
                 if self._percent_support == IMPLICIT_POSITIONING or pos == 100:
                     await self.async_open_cover_to(pos)
                 elif self._percent_support == EXPLICIT_POSITIONING:
@@ -534,7 +544,7 @@ class NeoSmartBlindsCover(CoverEntity):
                         ft.partial(self._client.async_set_position_by_percent, pos)
                     )
 
-            if delta < 0 or pos == 0:
+            if delta < 0:
                 if self._percent_support == IMPLICIT_POSITIONING or pos == 0:
                     await self.async_close_cover_to(pos)
                 elif self._percent_support == EXPLICIT_POSITIONING:
