@@ -33,6 +33,7 @@ cover:
     rail: 1
     percent_support: 1
     motor_code: bf
+    start_position: 50
 ```
 
 ## Configuration variables
@@ -99,12 +100,15 @@ Determines how requests to position by percentage are handled. As the blinds do 
 
 Notes:
 - If the blind is controlled outside of HA (e.g. in native app, using remote), this integration has no mechanism to discover the position from the hub so HA will get out of sync with the blind.
-- For the same reason, the integration will initialise on startup to 50 (half open). This is a guess. Issuing an open or close command to the blind (through this integration) will allow the positions to sync. Depending on setup, an automation that listens for HA to start could be used to either open or close the blinds to get them into sync.
+- For the same reason, the integration will initialise on startup according to start_position. This is a guess. Issuing an open or close command to the blind (through this integration) will allow the positions to sync. Depending on setup, an automation that listens for HA to start could be used to either open or close the blinds to get them into sync.
 - If exposing the blind via HomeKit, either option 1 or 2 should be selected to keep the actual position and Home in sync. 
 
 **motor_code** _(string)_<br>
 Defines the motor code listed in the neo smart blinds app on your phone.  Listed below the 'Blind Code' on the control page for the blind <br>
 This is required for some smart hubs to work (model C-BR300) 
+
+**start_position** _(int)_<br>
+Optional starting position for the blind when HA starts up. If not specified, the integration will restore the position saved from the last time HA was shutdown. This value is ignored if percent_support is zero.
 
 <br><br>
 
