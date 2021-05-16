@@ -92,9 +92,15 @@ Rail Number used to determine top or bottom rail on top down/bottom up blinds. <
 2 = Bottom Rail
 
 **percent_support** _(int)_<br>
-Determines if the blinds/controller support providing a percentage to set the blind position directly. <br>
+Determines how requests to position by percentage are handled. As the blinds do not report back their position, this integration can only estimate the position based on the close_time option <br>
 0 = No support (Default)<br>
-1 = Supported
+1 = Percentage positioning supported directly by blind, integration only reports position based on estimate<br>
+2 = Percentage positioning emulated completely by this integration.
+
+Notes:
+- If the blind is controlled outside of HA (e.g. in native app, using remote), this integration has no mechanism to discover the position from the hub so HA will get out of sync with the blind.
+- For the same reason, the integration will initialise on startup to 50 (half open). This is a guess. Issuing an open or close command to the blind (through this integration) will allow the positions to sync. Depending on setup, an automation that listens for HA to start could be used to either open or close the blinds to get them into sync.
+- If exposing the blind via HomeKit, either option 1 or 2 should be selected to keep the actual position and Home in sync. 
 
 **motor_code** _(string)_<br>
 Defines the motor code listed in the neo smart blinds app on your phone.  Listed below the 'Blind Code' on the control page for the blind <br>
@@ -131,19 +137,23 @@ Micro-Down
 
 **Set-Position & Favourite Position** - please note this is calculated using the close_time
 
-   ### Setting the position if "percent_support" is disabled:
-   
-   **<= 49** will move the blind down, this means set position 25, moves the blind down and stops after 50% of your close_time
-      
-   **>=52** will move the blind up, this means set position 75, moves the blind up and stops after 50% of your close_time
+   ### Setting the position if "percent_support" is 0:
    
    **==50** will set your blind to its stored first favourite position 
 
    **==51** will set your blind to its stored second favourite position 
 
-   ### Setting the position if "percent_support" is disabled:
+   ### Setting the position if "percent_support" is 1:
    
-   **Setting position** Use the position slider to select how 
+   **Setting position** Use the position slider to select how, blind will move to that position
+      
+   **Setting favorite postion 1** Use the tilt slider to select a value less than 50
+   
+   **Setting favorite postion 2** Use the tilt slider to select a value greater than 50
+
+   ### Setting the position if "percent_support" is 2:
+   
+   **Setting position** Use the position slider to select how, integration will move blind to position and then send stop command
       
    **Setting favorite postion 1** Use the tilt slider to select a value less than 50
    
