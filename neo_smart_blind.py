@@ -43,7 +43,7 @@ class NeoCommandSender(object):
                 self._was_connected = True
         else:
             if self._was_connected or self._was_connected is None:
-                _LOGGER.warning('{}, disconnected from hub: {}'.format(self._device, result))
+                _LOGGER.warning('{}, disconnected from hub: {}'.format(self._device, repr(result)))
                 self._was_connected = False
         
         return self._was_connected
