@@ -1,7 +1,7 @@
 {
   "name": "NeoSmart Blinds",
   "zip_release": true,
-  "filename": "neosmartblinds_v1.4.zip"
+  "filename": "neosmartblinds_v1.5.zip",
   "content_in_root": true,
   "render_readme": true,
   "domains": ["cover"],
