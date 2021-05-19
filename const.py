@@ -8,6 +8,17 @@ CONF_PORT = "port"
 CONF_RAIL = "rail"
 CONF_PERCENT_SUPPORT = "percent_support"
 CONF_MOTOR_CODE = "motor_code"
+CONF_START_POSITION = "start_position"
+
+LEGACY_POSITIONING = 0
+EXPLICIT_POSITIONING = 1
+IMPLICIT_POSITIONING = 2
+
+ACTION_STOPPED = 0
+ACTION_OPENING = 1
+ACTION_CLOSING = 2
+
+DEFAULT_IO_TIMEOUT = 5
 
 CMD_UP = "up"
 CMD_DOWN = "dn"
@@ -39,3 +50,4 @@ CMD_DOWN3 = "d3"
 # commands for fully opening and closing a top-down/bottom-up blind
 CMD_TDBU_OPEN = "op"
 CMD_TDBU_CLOSE = "cl"
+
