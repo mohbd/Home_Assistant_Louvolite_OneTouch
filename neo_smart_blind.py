@@ -1,9 +1,6 @@
 import logging
-import socket
-import time
 from datetime import datetime
 
-import aiohttp
 import asyncio
 
 from .const import (
@@ -13,15 +10,18 @@ from .const import (
     CMD_DOWN2,
     CMD_STOP,
     CMD_FAV,
-    CMD_FAV_1,
+    # CMD_FAV_1,  not used.
     CMD_FAV_2,
     CMD_MICRO_UP,
     CMD_MICRO_DOWN,
+    CMD_MICRO_UP2,
+    CMD_MICRO_DOWN2,
     DEFAULT_IO_TIMEOUT
 )
 
 _LOGGER = logging.getLogger(__name__)
 LOGGER = logging.getLogger()
+
 
 class NeoCommandSender(object):
     def __init__(self, host, the_id, device, port, motor_code):
@@ -45,12 +45,20 @@ class NeoCommandSender(object):
             if self._was_connected or self._was_connected is None:
                 _LOGGER.warning('{}, disconnected from hub: {}'.format(self._device, repr(result)))
                 self._was_connected = False
-        
+
         return self._was_connected
+
+    @property
+    def device(self):
+        return self._device
+
+    @property
+    def motor_code(self):
+        return self._motor_code
 
 
 class NeoTcpCommandSender(NeoCommandSender):
-    
+
     async def async_send_command(self, command):
         """Command sender for TCP"""
 
@@ -105,8 +113,12 @@ class NeoHttpCommandSender(NeoCommandSender):
                 _LOGGER.debug("{}, Rx: {} - {}".format(self._device, r.status, await r.text()))
                 return self.on_io_complete()
         except Exception as e:
+            # LOGGER.error("Exception while sending http command: {}, Tx: {}".format(self._device, r.url))
+            _LOGGER.error("Parameters: {}".format(params))
+            _LOGGER.error("URL: {}".format(url))
+            _LOGGER.error(e.__str__())
             return self.on_io_complete(e)
-        
+
 
 class NeoSmartBlind:
     def __init__(self, host, the_id, device, port, protocol, rail, motor_code, http_session_factory):
@@ -128,7 +140,7 @@ class NeoSmartBlind:
             _LOGGER.error("{}, unknown protocol: {}, please use: http or tcp".format(device, protocol))
 
     def unique_id(self, prefix):
-        return "{}.{}.{}.{}".format(prefix, self._command_sender._device, self._command_sender._motor_code, self._rail)
+        return "{}.{}.{}.{}".format(prefix, self._command_sender.device, self._command_sender.motor_code, self._rail)
 
     async def async_set_position_by_percent(self, pos):
         """NeoBlinds works off of percent closed, but HA works off of percent open, so need to invert the percentage"""
@@ -139,15 +151,15 @@ class NeoSmartBlind:
     async def async_stop_command(self):
         return await self._command_sender.async_send_command(CMD_STOP)
 
-    async def async_open_cover_tilt(self, **kwargs):
+    async def async_open_cover_tilt(self):
         if self._rail == 1:
             return await self._command_sender.async_send_command(CMD_MICRO_UP)
         elif self._rail == 2:
             return await self._command_sender.async_send_command(CMD_MICRO_UP2)
         """Open the cover tilt."""
         return False
-        
-    async def async_close_cover_tilt(self, **kwargs):
+
+    async def async_close_cover_tilt(self):
         if self._rail == 1:
             return await self._command_sender.async_send_command(CMD_MICRO_DOWN)
         elif self._rail == 2:
@@ -156,6 +168,7 @@ class NeoSmartBlind:
         return False
 
     """Send down command with rail support"""
+
     async def async_down_command(self):
         if self._rail == 1:
             return await self._command_sender.async_send_command(CMD_DOWN)
@@ -164,6 +177,7 @@ class NeoSmartBlind:
         return False
 
     """Send up command with rail support"""
+
     async def async_up_command(self):
         if self._rail == 1:
             return await self._command_sender.async_send_command(CMD_UP)
@@ -180,11 +194,8 @@ class NeoSmartBlind:
                 return 51
         return False
 
-
-
-
 # 2021-05-13 10:20:38 INFO (SyncWorker_4) [root] Sent: http://<ip>:8838/neo/v1/transmit?id=440036000447393032323330&command=146.215-08-up&hash=.812864
 # 2021-05-13 10:20:38 INFO (SyncWorker_4) [root] Neo Hub Responded with - 
 
 # 2021-05-13 10:30:54 INFO (SyncWorker_6) [root] Sent: http://<ip>:8838/neo/v1/transmit?id=440036000447393032323330&command=146.215-08-sp&hash=4.65143 (from 1620901854.65143)
-# 2021-05-13 10:30:54 INFO (SyncWorker_6) [root] Neo Hub Responded with - 
+# 2021-05-13 10:30:54 INFO (SyncWorker_6) [root] Neo Hub Responded with -
