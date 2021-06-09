@@ -423,7 +423,7 @@ class NeoSmartBlindsCover(CoverEntity, RestoreEntity):
         self._current_action = ACTION_CLOSING
 
         # Issue the move command
-        if await self._client.async_down_command() if move_command is None else move_command():
+        if await self._client.async_down_command() if move_command is None else await move_command():
             LOGGER.info('{} closing to {}'.format(self._name, target_position))
             # Put the positioning request on the ha queue to run in parallel but don't await it here (we want to continue)
             self.hass.async_create_task(self.async_cover_closed_to_position())
@@ -459,7 +459,7 @@ class NeoSmartBlindsCover(CoverEntity, RestoreEntity):
         self._current_action = ACTION_OPENING
 
         # Issue the move command
-        if await self._client.async_up_command() if move_command is None else move_command():
+        if await self._client.async_up_command() if move_command is None else await move_command():
             LOGGER.info('{} opening to {}'.format(self._name, target_position))
             # Put the positioning request on the ha queue to run in parallel but don't await it here (we want to continue)
             self.hass.async_create_task(self.async_cover_opened_to_position())
@@ -551,12 +551,6 @@ class NeoSmartBlindsCover(CoverEntity, RestoreEntity):
 
     """Adjust the blind based on the pos value send"""
 
-    def open_cover(self, **kwargs: Any) -> None:
-        pass
-
-    def close_cover(self, **kwargs: Any) -> None:
-        pass
-
     async def async_adjust_blind(self, pos):
 
         """Legacy support for using position to set favorites"""
@@ -614,7 +608,7 @@ class NeoSmartBlindsCover(CoverEntity, RestoreEntity):
                 if self._percent_support == IMPLICIT_POSITIONING or pos == 0:
                     await self.async_close_cover_to(pos)
                 elif self._percent_support == EXPLICIT_POSITIONING:
-                    await self.async_open_cover_to(
+                    await self.async_close_cover_to(
                         pos,
                         ft.partial(self._client.async_set_position_by_percent, pos)
                     )

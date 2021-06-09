@@ -113,7 +113,10 @@ class NeoHttpCommandSender(NeoCommandSender):
                 _LOGGER.debug("{}, Rx: {} - {}".format(self._device, r.status, await r.text()))
                 return self.on_io_complete()
         except Exception as e:
-            LOGGER.error("Exception while sending http command: {}, Tx: {}".format(self._device, r.url))
+            # LOGGER.error("Exception while sending http command: {}, Tx: {}".format(self._device, r.url))
+            _LOGGER.error("Parameters: {}".format(params))
+            _LOGGER.error("URL: {}".format(url))
+            _LOGGER.error(e.__str__())
             return self.on_io_complete(e)
 
 
