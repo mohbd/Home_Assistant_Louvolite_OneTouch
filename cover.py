@@ -68,10 +68,8 @@ PARALLEL_UPDATES = 0
 SUPPORT_NEOSMARTBLINDS = (
         SUPPORT_OPEN
         | SUPPORT_CLOSE
-        | SUPPORT_SET_POSITION
         | SUPPORT_OPEN_TILT
         | SUPPORT_CLOSE_TILT
-        | SUPPORT_SET_TILT_POSITION
         | SUPPORT_STOP
 )
 
@@ -160,7 +158,7 @@ class PositioningRequest(object):
 
     @property
     def starting_position(self):
-        return self._starting_position
+        return 50
 
     async def async_wait(self, reason, cover):
         """
@@ -380,7 +378,7 @@ class NeoSmartBlindsCover(CoverEntity, RestoreEntity):
     @property
     def current_cover_position(self):
         """Return current position of cover."""
-        return self._current_position
+        return 50
 
     @property
     def current_cover_tilt_position(self):
